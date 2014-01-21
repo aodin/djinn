@@ -3,15 +3,22 @@ package djinn
 import (
 	"bytes"
 	"crypto/hmac"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
+	"strings"
 	"time"
 )
 
 var (
-	BadSessionData = errors.New("djinn: improperly formatted session data")
-	InvalidHMAC    = errors.New("djinn: the session data hmac is invalid")
+	SessionDoesNotExist = errors.New("djinn: session does not exist")
+	MultipleSessions    = errors.New("djinn: multiple sessions were returned")
+	BadSessionData      = errors.New("djinn: improperly formatted session data")
+	InvalidHMAC         = errors.New("djinn: the session data hmac is invalid")
+	KeylessSession      = errors.New("djinn: a session must have a key to delete")
 )
 
 // django_session
@@ -25,11 +32,77 @@ func (s *Session) String() string {
 	return s.Key
 }
 
+func (s *Session) Delete() error {
+	if s.Key == "" {
+		return KeylessSession
+	}
+	// TODO Include a manager object in each session instance
+	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, Sessions.table)
+	_, err := Sessions.db.Exec(query, s.Key)
+	return err
+}
+
+// The session manager instance that will be populated on init()
+var Sessions *SessionManager
+
+type SessionManager struct {
+	db      *sql.DB
+	table   string
+	columns []string
+}
+
+// Get a session with an exact matching key and expire date greater than now
+func (m *SessionManager) Get(key string) (*Session, error) {
+	now := time.Now()
+
+	query := fmt.Sprintf(`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2`, strings.Join(m.columns, ", "), m.table)
+	parameters := []interface{}{key, now}
+
+	// Don't bother with a destination interface
+	rows, err := m.db.Query(query, parameters...)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO Error if multiple sessions are returned?
+	if !rows.Next() {
+		return nil, SessionDoesNotExist
+	}
+	session := &Session{}
+	if err := rows.Scan(&session.Key, &session.Data, &session.Expires); err != nil {
+		return nil, err
+	}
+	if rows.Next() {
+		return nil, MultipleSessions
+	}
+	return session, nil
+}
+
+// On init:
+// * Create a list of valid columns
+func init() {
+	// Get all the tags
+	// TODO Allow for private or unexported fields
+	session := &Session{}
+	elem := reflect.TypeOf(session).Elem()
+
+	columns := make([]string, elem.NumField())
+	for i := 0; i < elem.NumField(); i++ {
+		columns[i] = elem.Field(i).Tag.Get("db")
+	}
+
+	Sessions = &SessionManager{
+		table:   "django_session",
+		columns: columns,
+	}
+}
+
 type SessionData struct {
 	AuthUserBackend string `json:"_auth_user_backend"`
 	AuthUserId      int64  `json:"_auth_user_id"`
 }
 
+// TODO Encode to bytes?
 func (s *SessionData) Encode(salt, secret []byte) ([]byte, error) {
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -46,13 +119,11 @@ func (s *SessionData) Encode(salt, secret []byte) ([]byte, error) {
 	return dst, nil
 }
 
-func DecodeSessionData(salt, secret, encoded []byte) (*SessionData, error) {
+func DecodeSessionData(salt, secret []byte, encoded string) (*SessionData, error) {
 	// Decode the base64 data
 	// If you try to keep it as byte arrays, the DecodedLen method will
 	// return a maximum and there may be additional zero bytes
-	// data := make([]byte, base64.StdEncoding.DecodedLen(len(encoded)))
-	// _, err := base64.StdEncoding.Decode(data, encoded)
-	data, err := base64.StdEncoding.DecodeString(string(encoded))
+	data, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return nil, err
 	}

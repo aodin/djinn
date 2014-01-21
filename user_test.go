@@ -11,19 +11,24 @@ func ExpectString(t *testing.T, a, b string) {
 	}
 }
 
+func ExpectInt(t *testing.T, a, b int64) {
+	if a != b {
+		t.Errorf("Unexpected integer: %d != %d", a, b)
+	}
+}
+
 func TestUser(t *testing.T) {
 	// Connect to the database
 	db, err := Connect("postgres", "host=localhost port=5432 dbname=djangoex user=postgres password=gotest")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 	defer db.Close()
 
 	user, err := Users.GetId(1)
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err)
 	}
 
-	t.Error(user)
-	t.FailNow()
+	ExpectString(t, user.Username, "admin")
 }

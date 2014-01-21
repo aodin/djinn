@@ -42,6 +42,7 @@ func (u *User) Delete() error {
 	if u.Id == 0 {
 		return UserWithoutId
 	}
+	// TODO Include a manager object in each user instance
 	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, Users.table)
 	_, err := Users.db.Exec(query, u.Id)
 	return err
@@ -90,7 +91,7 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	return CheckPassword(hasher, password, u.Password), nil
 }
 
-// The specific manager instance that will be populated on init()
+// The user manager instance that will be populated on init()
 var Users *UserManager
 
 type UserManager struct {

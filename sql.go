@@ -14,6 +14,7 @@ func Connect(driver, credentials string) (*sql.DB, error) {
 	// Add the db driver to the managers
 	// TODO Extend the sql.DB struct and tie the managers to it
 	Users.db = db
+	Sessions.db = db
 	return db, nil
 }
 
