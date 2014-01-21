@@ -14,6 +14,7 @@ var (
 	UserDoesNotExist = errors.New("djinn: user does not exist")
 	MultipleUsers    = errors.New("djinn: multiple users returned")
 	UnusablePassword = errors.New("djinn: user password is unusable")
+	UserWithoutId    = errors.New("djinn: user must have an id")
 )
 
 // auth_user
@@ -29,10 +30,50 @@ type User struct {
 	IsSuperuser bool      `db:"is_superuser"`
 	DateJoined  time.Time `db:"date_joined"`
 	LastLogin   time.Time `db:"last_login"`
+	// TODO Add the user manager?
 }
 
 func (u *User) String() string {
 	return u.Username
+}
+
+// Delete the user from the database
+func (u *User) Delete() error {
+	if u.Id == 0 {
+		return UserWithoutId
+	}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, Users.table)
+	_, err := Users.db.Exec(query, u.Id)
+	return err
+}
+
+// Update the user
+func (u *User) Save() error {
+	if u.Id == 0 {
+		return UserWithoutId
+	}
+	// TODO This is a little shady
+	// TODO Only update the properties that changed?
+	columns := Users.columns[1:]
+	values := make([]string, len(columns))
+	for i, column := range columns {
+		values[i] = fmt.Sprintf(`%s = $%d`, column, i+1)
+	}
+	query := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, Users.table, strings.Join(values, ", "), len(columns)+1)
+
+	// Build the list of parameters
+	elem := reflect.ValueOf(u).Elem()
+	parameters := make([]interface{}, len(columns)+1)
+	for i := 1; i < elem.NumField(); i++ {
+		parameters[i-1] = elem.Field(i).Addr().Interface()
+	}
+	parameters[len(columns)] = u.Id
+
+	// TODO There should really be a manager object tied to the user struct
+	log.Println("djinn update:", query)
+	_, err := Users.db.Exec(query, parameters...)
+	return err
+
 }
 
 func (u *User) CheckPassword(password string) (bool, error) {
@@ -118,31 +159,37 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	// Prepare the user
 	// TODO Default values are tricky because Go users nil initialization
 	// TODO Where should the default hasher be set?
+	now := time.Now()
 	user := &User{
 		Username:    username,
 		Password:    MakePassword(defaultHasher, password),
 		Email:       email,
-		IsStaff:     is_staff,
 		IsSuperuser: is_superuser,
+		IsStaff:     is_staff,
+		IsActive:    true,
+		DateJoined:  now,
+		LastLogin:   now,
 	}
 
 	// Build a list of parameters
 	// TODO This is dialect dependent
-	values := make([]string, len(m.columns))
+	// TODO We want the columns except for the id, we know it's first for now
+	columns := m.columns[1:]
+	values := make([]string, len(columns))
 	for i, _ := range values {
 		values[i] = fmt.Sprintf(`$%d`, i+1)
 	}
 
 	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
-	parameters := make([]interface{}, elem.NumField())
-	for i := 0; i < elem.NumField(); i++ {
-		parameters[i] = elem.Field(i).Addr().Interface()
+	parameters := make([]interface{}, len(columns))
+	for i := 1; i < elem.NumField(); i++ {
+		parameters[i-1] = elem.Field(i).Addr().Interface()
 	}
-
-	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) RETURNING id`, strings.Join(m.columns, ", "), m.table, strings.Join(values, ", "))
+	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) RETURNING id`, m.table, strings.Join(columns, ", "), strings.Join(values, ", "))
 
 	// Return the new user's id
+	log.Println("djinn query:", query)
 	err := m.db.QueryRow(query, parameters...).Scan(&user.Id)
 	return user, err
 }
