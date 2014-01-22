@@ -1,6 +1,7 @@
 package djinn
 
 import (
+	"encoding/base64"
 	"fmt"
 )
 
@@ -10,10 +11,6 @@ type Hasher interface {
 	Verify(string, string) bool
 	Algorithm() string
 }
-
-// The default password hasher
-// TODO This should be set dynamically
-var defaultHasher Hasher
 
 func MakePassword(h Hasher, cleartext string) string {
 	return h.Encode(cleartext, h.Salt())
@@ -48,15 +45,11 @@ type BaseHasher struct {
 	algorithm string
 }
 
-func (bH *BaseHasher) Salt() string {
-	// Create a random string
-	return EncodeBase64String(RandomBytes(9))
+// Create a random string
+func (b *BaseHasher) Salt() string {
+	return base64.StdEncoding.EncodeToString(RandomBytes(9))
 }
 
-func (bH *BaseHasher) Algorithm() string {
-	return bH.algorithm
-}
-
-func NewBaseHasher(algorithm string) BaseHasher {
-	return BaseHasher{algorithm: algorithm}
+func (b *BaseHasher) Algorithm() string {
+	return b.algorithm
 }

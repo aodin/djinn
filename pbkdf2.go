@@ -90,19 +90,19 @@ type PBKDF2_Base struct {
 	digest func() hash.Hash // TODO move to base hasher?
 }
 
-func (pbkH *PBKDF2_Base) Encode(cleartext, salt string) string {
+func (pbk *PBKDF2_Base) Encode(cleartext, salt string) string {
 	// TODO these []byte conversions are a bit silly
-	hashed := EncodeBase64String(Pbkdf2([]byte(cleartext), []byte(salt), int(pbkH.rounds), pbkH.digest))
-	return strings.Join([]string{pbkH.Algorithm(), fmt.Sprintf("%d", pbkH.rounds), salt, hashed}, "$")
+	hashed := EncodeBase64String(Pbkdf2([]byte(cleartext), []byte(salt), int(pbk.rounds), pbk.digest))
+	return strings.Join([]string{pbk.Algorithm(), fmt.Sprintf("%d", pbk.rounds), salt, hashed}, "$")
 }
 
-func (pbkH *PBKDF2_Base) Verify(cleartext, encoded string) bool {
+func (pbk *PBKDF2_Base) Verify(cleartext, encoded string) bool {
 	// Split the saved hash apart
 	splitHash := strings.SplitN(encoded, "$", 4)
 
 	// The algorithm should match this hasher
 	algo := splitHash[0]
-	if algo != pbkH.Algorithm() {
+	if algo != pbk.Algorithm() {
 		return false
 	}
 	rounds64, err := strconv.ParseInt(splitHash[1], 10, 0)
@@ -113,12 +113,12 @@ func (pbkH *PBKDF2_Base) Verify(cleartext, encoded string) bool {
 	salt := splitHash[2]
 
 	// Generate a new hash using the given cleartext
-	hashed := Pbkdf2([]byte(cleartext), []byte(salt), rounds, pbkH.digest)
+	hashed := Pbkdf2([]byte(cleartext), []byte(salt), rounds, pbk.digest)
 	return ConstantTimeStringCompare(EncodeBase64String(hashed), splitHash[3])
 }
 
 func NewPBKDF2Hasher(algorithm string, rounds int64, digest func() hash.Hash) *PBKDF2_Base {
-	return &PBKDF2_Base{NewBaseHasher(algorithm), rounds, digest}
+	return &PBKDF2_Base{BaseHasher{algorithm: algorithm}, rounds, digest}
 }
 
 func init() {
@@ -127,6 +127,4 @@ func init() {
 
 	pbkdf2_sha1 := NewPBKDF2Hasher("pbkdf2_sha1", 12000, sha1.New)
 	RegisterHasher(pbkdf2_sha1.algorithm, pbkdf2_sha1)
-
-	defaultHasher = pbkdf2_sha256
 }

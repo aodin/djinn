@@ -159,8 +159,14 @@ func (m *UserManager) All() (users []*User, err error) {
 func (m *UserManager) createUser(username, email, password string, is_staff, is_superuser bool) (*User, error) {
 	// Prepare the user
 	// TODO Default values are tricky because Go users nil initialization
-	// TODO Where should the default hasher be set?
 	now := time.Now()
+
+	// Get the default password hashing algorithm
+	defaultHasher, err := GetHasher(config.PasswordHasher)
+	if err != nil {
+		return nil, err
+	}
+
 	user := &User{
 		Username:    username,
 		Password:    MakePassword(defaultHasher, password),
@@ -191,7 +197,7 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 
 	// Return the new user's id
 	log.Println("djinn query:", query)
-	err := m.db.QueryRow(query, parameters...).Scan(&user.Id)
+	err = m.db.QueryRow(query, parameters...).Scan(&user.Id)
 	return user, err
 }
 

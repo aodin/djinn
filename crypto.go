@@ -33,6 +33,24 @@ func SaltedHMAC(salt, secret, data []byte) []byte {
 	return dst
 }
 
+func EncodeBase64Bytes(input []byte) []byte {
+	var buf bytes.Buffer
+	e := base64.NewEncoder(base64.StdEncoding, &buf)
+	e.Write(input)
+	e.Close()
+	return buf.Bytes()
+}
+
+// TODO errors instead of panic?
+func RandomBytes(length int) []byte {
+	salt := make([]byte, length)
+	_, err := io.ReadFull(rand.Reader, salt)
+	if err != nil {
+		panic("djinn: could not generate random bytes")
+	}
+	return salt
+}
+
 // TODO standardize the usage of []byte arrays versus string
 func ConstantTimeStringCompare(v1, v2 string) bool {
 	// Reimplementation of crypto.subtle.ConstantTimeCompare
@@ -48,21 +66,10 @@ func ConstantTimeStringCompare(v1, v2 string) bool {
 	return subtle.ConstantTimeByteEq(result, 0) == 1
 }
 
-// TODO Or: base64.StdEncoding.EncodeToString([]byte(data))
 func EncodeBase64String(input []byte) string {
 	var buf bytes.Buffer
 	e := base64.NewEncoder(base64.StdEncoding, &buf)
 	e.Write(input)
 	e.Close()
 	return buf.String()
-}
-
-// TODO errors instead of panic?
-func RandomBytes(length int) []byte {
-	salt := make([]byte, length)
-	_, err := io.ReadFull(rand.Reader, salt)
-	if err != nil {
-		panic("djinn: could not generate random bytes")
-	}
-	return salt
 }
