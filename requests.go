@@ -13,14 +13,14 @@ func Authenticate(req *http.Request) *User {
 	if err != nil {
 		return nil
 	}
-	sessionKey := sessionCookie.Value
 
-	// Get the session associated with this id
-	session, err := Sessions.Get(sessionKey)
+	// Get the session associated with this key
+	session, err := Sessions.Get(sessionCookie.Value)
 	if err != nil {
 		return nil
 	}
 
+	// Decode the session data using the salt and secret from config
 	sessionData, err := DecodeSessionData(
 		[]byte(config.SessionSalt),
 		[]byte(config.Secret),

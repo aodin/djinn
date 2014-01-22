@@ -64,7 +64,7 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 		return nil, err
 	}
 
-	// TODO Error if multiple sessions are returned?
+	// One and only one session should be returned
 	if !rows.Next() {
 		return nil, SessionDoesNotExist
 	}
