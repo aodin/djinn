@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io"
+	"math/big"
 )
 
 // Calculate the HMAC using the salt and secret as the key.
@@ -72,4 +73,25 @@ func EncodeBase64String(input []byte) string {
 	e.Write(input)
 	e.Close()
 	return buf.String()
+}
+
+var validChars = []byte(`abcdefghijklmnopqrstuvwxyz0123456789`)
+
+func GetRandomString(n int) string {
+	// TODO Different valid characters
+	validLen := big.NewInt(int64(len(validChars)))
+	dst := make([]byte, n)
+
+	for i, _ := range dst {
+		var index int64
+		for {
+			r, err := rand.Int(rand.Reader, validLen)
+			if err == nil {
+				index = r.Int64()
+				break
+			}
+		}
+		dst[i] = validChars[index]
+	}
+	return string(dst)
 }

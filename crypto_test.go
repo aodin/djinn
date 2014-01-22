@@ -15,3 +15,15 @@ func TestSaltedHMAC(t *testing.T) {
 		t.Errorf("Unexpected salted hmac: %s != %s", hmacd, expected)
 	}
 }
+
+func TestGetRandomString(t *testing.T) {
+	// Generate a random string, ignore the results
+	// TODO Test the entropy?
+	GetRandomString(32)
+}
+
+func BenchmarkGetRandomString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		GetRandomString(32)
+	}
+}
