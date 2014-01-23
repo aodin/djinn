@@ -2,21 +2,29 @@ package djinn
 
 import (
 	"flag"
+	"time"
 )
 
 type Config struct {
-	PasswordHasher    string `json:"PASSWORD_HASHER"` // default, not full list
-	Secret            string `json:"SECRET"`
-	SessionSalt       string `json:"SESSION_SALT"`
-	SessionCookieName string `json:"SESSION_COOKIE_NAME"`
+	PasswordHasher    string        `json:"PASSWORD_HASHER"`
+	Secret            string        `json:"SECRET"`
+	SessionSalt       string        `json:"SESSION_SALT"`
+	SessionCookieAge  time.Duration `json:"SESSION_COOKIE_AGE"`
+	SessionCookieName string        `json:"SESSION_COOKIE_NAME"`
 	// TODO Database configuration(s)
+	// TODO Specify multiple password hashing algorithms
+}
+
+func (c Config) Copy() Config {
+	return c
 }
 
 var config = Config{
+	PasswordHasher:    "pbkdf2_sha256",
 	Secret:            "", // This must be set or bad news bears
 	SessionSalt:       "django.contrib.sessionsSessionStore",
+	SessionCookieAge:  14 * 24 * time.Hour, // 2 weeks
 	SessionCookieName: "sessionid",
-	PasswordHasher:    "pbkdf2_sha256",
 }
 
 // The configuration can be set by command line flags or a JSON configuration

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"time"
@@ -71,7 +70,6 @@ func (u *User) Save() error {
 	parameters[len(columns)] = u.Id
 
 	// TODO There should really be a manager object tied to the user struct
-	log.Println("djinn update:", query)
 	_, err := Users.db.Exec(query, parameters...)
 	return err
 
@@ -196,7 +194,6 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) RETURNING id`, m.table, strings.Join(columns, ", "), strings.Join(values, ", "))
 
 	// Return the new user's id
-	log.Println("djinn query:", query)
 	err = m.db.QueryRow(query, parameters...).Scan(&user.Id)
 	return user, err
 }
@@ -241,7 +238,6 @@ func (m *UserManager) Get(values Values) (*User, error) {
 		dest[i] = elem.Field(i).Addr().Interface()
 	}
 
-	log.Println("djinn query:", query)
 	rows, err := m.db.Query(query, parameters...)
 	if err != nil {
 		return nil, err

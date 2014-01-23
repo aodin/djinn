@@ -23,9 +23,9 @@ var (
 
 // django_session
 type Session struct {
-	Key     string     `db:"session_key"`
-	Data    string     `db:"session_data"`
-	Expires *time.Time `db:"expire_date"`
+	Key     string    `db:"session_key"`
+	Data    string    `db:"session_data"`
+	Expires time.Time `db:"expire_date"`
 }
 
 func (s *Session) String() string {
@@ -56,10 +56,9 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	now := time.Now()
 
 	query := fmt.Sprintf(`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2`, strings.Join(m.columns, ", "), m.table)
-	parameters := []interface{}{key, now}
 
 	// Don't bother with a destination interface
-	rows, err := m.db.Query(query, parameters...)
+	rows, err := m.db.Query(query, key, now)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +73,74 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	}
 	if rows.Next() {
 		return nil, MultipleSessions
+	}
+	return session, nil
+}
+
+// Determine if a session with the given key exists in the database
+func (m *SessionManager) Exists(key string) (exists bool, err error) {
+	query := fmt.Sprintf(
+		`SELECT EXISTS(SELECT 1 FROM %s WHERE session_key = $1 LIMIT 1)`,
+		m.table,
+	)
+	err = m.db.QueryRow(query, key).Scan(&exists)
+	return
+}
+
+func (m *SessionManager) Create(userId int64) (*Session, error) {
+	// Create the session data
+	data := &SessionData{
+		AuthUserBackend: "django.contrib.auth.backends.ModelBackend",
+		AuthUserId:      userId,
+	}
+
+	// Encode the session data using the configuration salt and secret
+	encoded, err := data.Encode(
+		[]byte(config.SessionSalt),
+		[]byte(config.Secret),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a random key - worst case is O(infinity)!
+	// But with 36 ^ 32 possibilities, we'll need 10 septillion sessions
+	// before we hit the birthday bound
+	var key string
+	for {
+		key = GetRandomString(32)
+		// Confirm that this key does not already exist
+		exists, err := m.Exists(key)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			break
+		}
+	}
+
+	// Build the Session
+	session := &Session{
+		Key:     key,
+		Data:    string(encoded),
+		Expires: time.Now().Add(config.SessionCookieAge),
+	}
+
+	// Create the query
+	values := make([]string, len(m.columns))
+	for i, _ := range values {
+		values[i] = fmt.Sprintf(`$%d`, i+1)
+	}
+	query := fmt.Sprintf(
+		`INSERT INTO %s (%s) VALUES (%s)`,
+		m.table,
+		strings.Join(m.columns, ", "),
+		strings.Join(values, ", "),
+	)
+	_, err = m.db.Exec(query, &session.Key, &session.Data, &session.Expires)
+	// Return nil on error - don't return a session if it wasn't created
+	if err != nil {
+		return nil, err
 	}
 	return session, nil
 }
