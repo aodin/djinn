@@ -55,7 +55,11 @@ type SessionManager struct {
 func (m *SessionManager) Get(key string) (*Session, error) {
 	now := time.Now()
 
-	query := fmt.Sprintf(`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2`, strings.Join(m.columns, ", "), m.table)
+	query := fmt.Sprintf(
+		`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2 LIMIT 2`,
+		strings.Join(m.columns, ", "),
+		m.table,
+	)
 
 	// Don't bother with a destination interface
 	rows, err := m.db.Query(query, key, now)

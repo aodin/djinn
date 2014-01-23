@@ -59,7 +59,12 @@ func (u *User) Save() error {
 	for i, column := range columns {
 		values[i] = fmt.Sprintf(`%s = $%d`, column, i+1)
 	}
-	query := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, Users.table, strings.Join(values, ", "), len(columns)+1)
+	query := fmt.Sprintf(
+		`UPDATE %s SET %s WHERE id = $%d`,
+		Users.table,
+		strings.Join(values, ", "),
+		len(columns)+1,
+	)
 
 	// Build the list of parameters
 	elem := reflect.ValueOf(u).Elem()
@@ -128,7 +133,11 @@ func init() {
 }
 
 func (m *UserManager) All() (users []*User, err error) {
-	query := fmt.Sprintf("SELECT %s FROM %s", strings.Join(m.columns, ", "), m.table)
+	query := fmt.Sprintf(
+		`SELECT %s FROM %s`,
+		strings.Join(m.columns, ", "),
+		m.table,
+	)
 
 	// TODO performance of the interface building versus direct struct scan?
 	rows, err := m.db.Query(query)
@@ -191,7 +200,12 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	for i := 1; i < elem.NumField(); i++ {
 		parameters[i-1] = elem.Field(i).Addr().Interface()
 	}
-	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) RETURNING id`, m.table, strings.Join(columns, ", "), strings.Join(values, ", "))
+	query := fmt.Sprintf(
+		`INSERT INTO %s (%s) VALUES (%s) RETURNING id`,
+		m.table,
+		strings.Join(columns, ", "),
+		strings.Join(values, ", "),
+	)
 
 	// Return the new user's id
 	err = m.db.QueryRow(query, parameters...).Scan(&user.Id)
@@ -223,13 +237,18 @@ func (m *UserManager) Get(values Values) (*User, error) {
 	paramCount := 0
 	for key, value := range values {
 		if !m.isValid(key) {
-			return nil, errors.New(fmt.Sprintf(`djinn: invalid column %q in user query`, key))
+			return nil, fmt.Errorf(`djinn: invalid column %q in user query`, key)
 		}
 		paramCount += 1
 		wheres = append(wheres, fmt.Sprintf(`%s = $%d`, key, paramCount))
 		parameters = append(parameters, value)
 	}
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s LIMIT 2", strings.Join(m.columns, ", "), m.table, strings.Join(wheres, " AND "))
+	query := fmt.Sprintf(
+		`SELECT %s FROM %s WHERE %s LIMIT 2`,
+		strings.Join(m.columns, ", "),
+		m.table,
+		strings.Join(wheres, " AND "),
+	)
 
 	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()

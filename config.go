@@ -21,7 +21,7 @@ func (c Config) Copy() Config {
 
 var config = Config{
 	PasswordHasher:    "pbkdf2_sha256",
-	Secret:            "", // This must be set or bad news bears
+	Secret:            "",
 	SessionSalt:       "django.contrib.sessionsSessionStore",
 	SessionCookieAge:  14 * 24 * time.Hour, // 2 weeks
 	SessionCookieName: "sessionid",
@@ -32,7 +32,12 @@ var config = Config{
 // configuration and the command line flags over both.
 
 func init() {
-	flag.StringVar(&config.Secret, "secret", "", "The SECRET_KEY that will be used to encode session data")
+	flag.StringVar(
+		&config.Secret,
+		"secret",
+		"", // This must be set or bad news bears
+		"The SECRET_KEY that will be used to encode session data",
+	)
 	flag.Parse()
 }
 
