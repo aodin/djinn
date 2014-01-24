@@ -77,7 +77,6 @@ func (u *User) Save() error {
 	// TODO There should really be a manager object tied to the user struct
 	_, err := Users.db.Exec(query, parameters...)
 	return err
-
 }
 
 func (u *User) CheckPassword(password string) (bool, error) {
@@ -262,7 +261,7 @@ func (m *UserManager) Get(values Values) (*User, error) {
 		return nil, err
 	}
 
-	// One, and only one, result should be returned
+	// One, and only one result should be returned
 	if !rows.Next() {
 		return nil, UserDoesNotExist
 	}

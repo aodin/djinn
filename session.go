@@ -56,7 +56,7 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	now := time.Now()
 
 	query := fmt.Sprintf(
-		`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2 LIMIT 2`,
+		`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2`,
 		strings.Join(m.columns, ", "),
 		m.table,
 	)
@@ -108,7 +108,7 @@ func (m *SessionManager) Create(userId int64) (*Session, error) {
 	}
 
 	// Generate a random key - worst case is O(infinity)!
-	// But with 36 ^ 32 possibilities, we'll need 10 septillion sessions
+	// But with 36 ** 32 possibilities, we'll need 10 septillion sessions
 	// before we hit the birthday bound
 	var key string
 	for {

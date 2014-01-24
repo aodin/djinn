@@ -1,8 +1,11 @@
 package djinn
 
 import (
+	"errors"
 	"net/http"
 )
+
+var IncorrectPassword = errors.New("djinn: the password was incorrect")
 
 // Read the http.Request object and authenticate a user.
 // Returns the User if valid or nil otherwise.
@@ -38,10 +41,52 @@ func Authenticate(req *http.Request) *User {
 	return user
 }
 
+// Cookies must be written before any data.
+func SetSessionCookie(w http.ResponseWriter, session *Session) {
+	// Create the cookie
+	cookie := &http.Cookie{
+		Name:     config.SessionCookieName,
+		Value:    session.Key,
+		Path:     config.SessionCookiePath,
+		Domain:   config.SessionCookieDomain,
+		Expires:  session.Expires,
+		HttpOnly: config.SessionCookieHttpOnly,
+		Secure:   config.SessionCookieSecure,
+	}
+	http.SetCookie(w, cookie)
+}
+
 // Read the http.Request object and Log in a user.
 // Returns the User and writes a session cookie to http.ResponseWriter.
 // This function must be called before anything is written to the response.
-// TODO What to do about possible database and decoding errors?
-func Login(w http.ResponseWriter, req *http.Request) *User {
-	return nil
+func Login(w http.ResponseWriter, req *http.Request) (*User, error) {
+	// TODO Custom username and password fields
+	username := req.FormValue("username")
+	password := req.FormValue("password")
+
+	// Get the user with this username
+	// There must only be one user returned
+	user, err := Users.Get(Values{"username": username})
+	if err != nil {
+		return nil, err
+	}
+
+	// Do a constant time comparison of passwords
+	valid, err := user.CheckPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	if !valid {
+		return nil, IncorrectPassword
+	}
+
+	// Create a new session
+	session, err := Sessions.Create(user.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the cookie and return the user
+	SetSessionCookie(w, session)
+	return user, nil
 }
