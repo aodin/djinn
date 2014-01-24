@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	LoginURL              string        `json:"LOGIN_URL"`
 	PasswordHasher        string        `json:"PASSWORD_HASHER"`
 	Secret                string        `json:"SECRET"`
 	SessionSalt           string        `json:"SESSION_SALT"`
@@ -24,6 +25,7 @@ func (c Config) Copy() Config {
 }
 
 var config = Config{
+	LoginURL:              "/login",
 	PasswordHasher:        "pbkdf2_sha256",
 	Secret:                "",
 	SessionSalt:           "django.contrib.sessionsSessionStore",

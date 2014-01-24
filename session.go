@@ -37,7 +37,10 @@ func (s *Session) Delete() error {
 		return KeylessSession
 	}
 	// TODO Include a manager object in each session instance
-	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, Sessions.table)
+	query := fmt.Sprintf(
+		`DELETE FROM %s WHERE session_key = $1`,
+		Sessions.table,
+	)
 	_, err := Sessions.db.Exec(query, s.Key)
 	return err
 }
