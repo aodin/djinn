@@ -3,12 +3,10 @@ package djinn
 import (
 	"bytes"
 	"crypto/hmac"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -46,12 +44,19 @@ func (s *Session) Delete() error {
 }
 
 // The session manager instance that will be populated on init()
-var Sessions *SessionManager
-
 type SessionManager struct {
-	db      *sql.DB
+	db      *Dialect
 	table   string
 	columns []string
+	primary string
+}
+
+// Build columns and primary keys dynamically - on init?
+var Sessions = &SessionManager{
+	db:      &dialect,
+	table:   "django_session",
+	columns: []string{"session_key", "session_data", "expire_date"},
+	primary: "session_key",
 }
 
 // Get a session with an exact matching key and expire date greater than now
@@ -150,25 +155,6 @@ func (m *SessionManager) Create(userId int64) (*Session, error) {
 		return nil, err
 	}
 	return session, nil
-}
-
-// On init:
-// * Create a list of valid columns
-func init() {
-	// Get all the tags
-	// TODO Allow for private or unexported fields
-	session := &Session{}
-	elem := reflect.TypeOf(session).Elem()
-
-	columns := make([]string, elem.NumField())
-	for i := 0; i < elem.NumField(); i++ {
-		columns[i] = elem.Field(i).Tag.Get("db")
-	}
-
-	Sessions = &SessionManager{
-		table:   "django_session",
-		columns: columns,
-	}
 }
 
 type SessionData struct {

@@ -8,6 +8,8 @@ type Group struct {
 	Name string `db:"name"`
 }
 
+// TODO Many to many link to permissions
+
 func (group *Group) String() string {
 	return group.Name
 }

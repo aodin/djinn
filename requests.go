@@ -92,7 +92,7 @@ func Login(w http.ResponseWriter, req *http.Request) (*User, error) {
 }
 
 // Read the session cookie from the request and delete associated session
-// from the database if it exists 
+// from the database if it exists
 func Logout(req *http.Request) error {
 	// Delete the existing session
 	sessionCookie, err := req.Cookie(config.SessionCookieName)

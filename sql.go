@@ -2,20 +2,105 @@ package djinn
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
+	"strings"
+	"time"
 )
 
 type Values map[string]interface{}
 
-func Connect(driver, credentials string) (*sql.DB, error) {
+type Dialect struct {
+	*sql.DB
+	parameters ParameterBuilder
+}
+
+func (d *Dialect) Query(q string, args ...interface{}) (rows *sql.Rows, err error) {
+	before := time.Now()
+	rows, err = d.DB.Query(q, args...)
+	d.Log(q, time.Now().Sub(before), args)
+	return
+}
+
+func (d *Dialect) QueryRow(q string, args ...interface{}) *sql.Row {
+	before := time.Now()
+	row := d.DB.QueryRow(q, args...)
+	d.Log(q, time.Now().Sub(before), args)
+	return row
+}
+
+func (d *Dialect) Exec(q string, args ...interface{}) (sql.Result, error) {
+	before := time.Now()
+	result, err := d.DB.Exec(q, args...)
+	d.Log(q, time.Now().Sub(before), args)
+	return result, err
+}
+
+// Output the elapsed time, query, and arguments
+func (d *Dialect) Log(q string, elapsed time.Duration, args ...interface{}) {
+	// TODO Only output if a logger exists
+	log.Printf(`(%.3f) %s args=%v`, elapsed.Seconds(), q, args)
+}
+
+// Escape table columns and join
+func (d *Dialect) JoinColumns(columns []string) string {
+	escaped := make([]string, len(columns))
+	for i, column := range columns {
+		escaped[i] = fmt.Sprintf(`"%s"`, column)
+	}
+	return strings.Join(escaped, ", ")
+}
+
+func (d *Dialect) JoinColumnParameters(columns []string) string {
+	escaped := make([]string, len(columns))
+	for i, column := range columns {
+		escaped[i] = fmt.Sprintf(`"%s" = %s`, column, d.parameters.Build(i))
+	}
+	return strings.Join(escaped, ", ")
+}
+
+func (d *Dialect) BuildParameters(columns []string) string {
+	parameters := make([]string, len(columns))
+	for i, _ := range columns {
+		parameters[i] = d.parameters.Build(i)
+	}
+	return strings.Join(parameters, ", ")
+}
+
+type ParameterBuilder interface {
+	Build(int) string
+}
+
+type PostGresBuilder struct{}
+
+func (b *PostGresBuilder) Build(i int) string {
+	return fmt.Sprintf(`$%d`, i+1)
+}
+
+type Sqlite3Builder struct{}
+
+func (b *Sqlite3Builder) Build(i int64) string {
+	return `?`
+}
+
+var postgresParameters = &PostGresBuilder{}
+
+var sqlite3Paramters = &Sqlite3Builder{}
+
+// The single dialect instance that all managers will embed
+// TODO What about multiple databases?
+var dialect Dialect
+
+func Connect(driver, credentials string) (*Dialect, error) {
 	db, err := sql.Open(driver, credentials)
 	if err != nil {
 		return nil, err
 	}
-	// Add the db driver to the managers
-	// TODO Extend the sql.DB struct and tie the managers to it
-	Users.db = db
-	Sessions.db = db
-	return db, nil
+	// TODO determine which parameter building should be used
+	dialect = Dialect{DB: db, parameters: postgresParameters}
+
+	// TODO Or return the dialect?
+	return &dialect, nil
 }
 
 var CREATE_DJANGO_AUTH = `BEGIN;

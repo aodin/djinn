@@ -1,7 +1,6 @@
 package djinn
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -93,13 +92,19 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	return CheckPassword(hasher, password, u.Password), nil
 }
 
-// The user manager instance that will be populated on init()
-var Users *UserManager
-
 type UserManager struct {
-	db      *sql.DB
+	db      *Dialect
 	table   string
 	columns []string
+	primary string
+}
+
+// Build columns and primary keys dynamically - on init?
+var Users = &UserManager{
+	db:      &dialect,
+	table:   "auth_user",
+	columns: []string{"id", "username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login"},
+	primary: "id",
 }
 
 // TODO A generalized isValid method for all managers
@@ -110,25 +115,6 @@ func (m *UserManager) isValid(column string) bool {
 		}
 	}
 	return false
-}
-
-// On init:
-// * Create a list of valid columns
-func init() {
-	// Get all the tags
-	// TODO Allow for private or unexported fields
-	user := &User{}
-	elem := reflect.TypeOf(user).Elem()
-
-	columns := make([]string, elem.NumField())
-	for i := 0; i < elem.NumField(); i++ {
-		columns[i] = elem.Field(i).Tag.Get("db")
-	}
-
-	Users = &UserManager{
-		table:   "auth_user",
-		columns: columns,
-	}
 }
 
 func (m *UserManager) All() (users []*User, err error) {
