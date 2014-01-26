@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -16,7 +15,6 @@ var (
 	MultipleSessions    = errors.New("djinn: multiple sessions were returned")
 	BadSessionData      = errors.New("djinn: improperly formatted session data")
 	InvalidHMAC         = errors.New("djinn: the session data hmac is invalid")
-	KeylessSession      = errors.New("djinn: a session must have a key to delete")
 )
 
 // django_session
@@ -24,6 +22,7 @@ type Session struct {
 	Key     string    `db:"session_key"`
 	Data    string    `db:"session_data"`
 	Expires time.Time `db:"expire_date"`
+	manager *SessionManager
 }
 
 func (s *Session) String() string {
@@ -31,19 +30,17 @@ func (s *Session) String() string {
 }
 
 func (s *Session) Delete() error {
-	if s.Key == "" {
-		return KeylessSession
-	}
-	// TODO Include a manager object in each session instance
+	// TODO There must be a non-nil manager and database connection
 	query := fmt.Sprintf(
-		`DELETE FROM %s WHERE session_key = $1`,
-		Sessions.table,
+		`DELETE FROM "%s" WHERE "%s" = %s`,
+		s.manager.table,
+		s.manager.primary,
+		s.manager.db.parameters.Build(0),
 	)
-	_, err := Sessions.db.Exec(query, s.Key)
+	_, err := s.manager.db.Exec(query, s.Key)
 	return err
 }
 
-// The session manager instance that will be populated on init()
 type SessionManager struct {
 	db      *Dialect
 	table   string
@@ -51,6 +48,7 @@ type SessionManager struct {
 	primary string
 }
 
+// The global session manager
 // Build columns and primary keys dynamically - on init?
 var Sessions = &SessionManager{
 	db:      &dialect,
@@ -64,9 +62,11 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	now := time.Now()
 
 	query := fmt.Sprintf(
-		`SELECT %s FROM %s WHERE session_key = $1 AND expire_date >= $2`,
-		strings.Join(m.columns, ", "),
+		`SELECT %s FROM "%s" WHERE "session_key" = %s AND "expire_date" >= %s`,
+		m.db.JoinColumns(m.columns),
 		m.table,
+		m.db.parameters.Build(0),
+		m.db.parameters.Build(1),
 	)
 
 	// Don't bother with a destination interface
@@ -79,21 +79,24 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	if !rows.Next() {
 		return nil, SessionDoesNotExist
 	}
-	session := &Session{}
-	if err := rows.Scan(&session.Key, &session.Data, &session.Expires); err != nil {
+	s := &Session{
+		manager: m,
+	}
+	if err := rows.Scan(&s.Key, &s.Data, &s.Expires); err != nil {
 		return nil, err
 	}
 	if rows.Next() {
 		return nil, MultipleSessions
 	}
-	return session, nil
+	return s, nil
 }
 
 // Determine if a session with the given key exists in the database
 func (m *SessionManager) Exists(key string) (exists bool, err error) {
 	query := fmt.Sprintf(
-		`SELECT EXISTS(SELECT 1 FROM %s WHERE session_key = $1 LIMIT 1)`,
+		`SELECT EXISTS(SELECT 1 FROM "%s" WHERE "session_key" = %s LIMIT 1)`,
 		m.table,
+		m.db.parameters.Build(0),
 	)
 	err = m.db.QueryRow(query, key).Scan(&exists)
 	return
@@ -136,18 +139,15 @@ func (m *SessionManager) Create(userId int64) (*Session, error) {
 		Key:     key,
 		Data:    string(encoded),
 		Expires: time.Now().Add(config.SessionCookieAge),
+		manager: m,
 	}
 
 	// Create the query
-	values := make([]string, len(m.columns))
-	for i, _ := range values {
-		values[i] = fmt.Sprintf(`$%d`, i+1)
-	}
 	query := fmt.Sprintf(
 		`INSERT INTO %s (%s) VALUES (%s)`,
 		m.table,
-		strings.Join(m.columns, ", "),
-		strings.Join(values, ", "),
+		m.db.JoinColumns(m.columns),
+		m.db.BuildParameters(m.columns),
 	)
 	_, err = m.db.Exec(query, &session.Key, &session.Data, &session.Expires)
 	// Return nil on error - don't return a session if it wasn't created

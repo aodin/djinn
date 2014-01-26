@@ -12,7 +12,6 @@ var (
 	UserDoesNotExist = errors.New("djinn: user does not exist")
 	MultipleUsers    = errors.New("djinn: multiple users returned")
 	UnusablePassword = errors.New("djinn: user password is unusable")
-	UserWithoutId    = errors.New("djinn: user must have an id")
 )
 
 // auth_user
@@ -28,7 +27,7 @@ type User struct {
 	IsSuperuser bool      `db:"is_superuser"`
 	DateJoined  time.Time `db:"date_joined"`
 	LastLogin   time.Time `db:"last_login"`
-	// TODO Add the user manager?
+	manager     *UserManager
 }
 
 func (u *User) String() string {
@@ -37,32 +36,28 @@ func (u *User) String() string {
 
 // Delete the user from the database
 func (u *User) Delete() error {
-	if u.Id == 0 {
-		return UserWithoutId
-	}
-	// TODO Include a manager object in each user instance
-	query := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, Users.table)
-	_, err := Users.db.Exec(query, u.Id)
+	// TODO There must be a non-nil manager and database connection
+	query := fmt.Sprintf(
+		`DELETE FROM "%s" WHERE "%s" = %s`,
+		u.manager.table,
+		u.manager.primary,
+		u.manager.db.parameters.Build(0),
+	)
+	_, err := u.manager.db.Exec(query, u.Id)
 	return err
 }
 
 // Update the user
 func (u *User) Save() error {
-	if u.Id == 0 {
-		return UserWithoutId
-	}
-	// TODO This is a little shady
+	// TODO There must be a non-nil manager and database connection
 	// TODO Only update the properties that changed?
 	columns := Users.columns[1:]
-	values := make([]string, len(columns))
-	for i, column := range columns {
-		values[i] = fmt.Sprintf(`%s = $%d`, column, i+1)
-	}
 	query := fmt.Sprintf(
-		`UPDATE %s SET %s WHERE id = $%d`,
-		Users.table,
-		strings.Join(values, ", "),
-		len(columns)+1,
+		`UPDATE "%s" SET %s WHERE "%s" = %s`,
+		u.manager.table,
+		u.manager.db.JoinColumnParameters(columns),
+		u.manager.primary,
+		u.manager.db.parameters.Build(len(columns)),
 	)
 
 	// Build the list of parameters
@@ -73,8 +68,7 @@ func (u *User) Save() error {
 	}
 	parameters[len(columns)] = u.Id
 
-	// TODO There should really be a manager object tied to the user struct
-	_, err := Users.db.Exec(query, parameters...)
+	_, err := u.manager.db.Exec(query, parameters...)
 	return err
 }
 
@@ -119,8 +113,8 @@ func (m *UserManager) isValid(column string) bool {
 
 func (m *UserManager) All() (users []*User, err error) {
 	query := fmt.Sprintf(
-		`SELECT %s FROM %s`,
-		strings.Join(m.columns, ", "),
+		`SELECT %s FROM "%s"`,
+		m.db.JoinColumns(m.columns),
 		m.table,
 	)
 
@@ -130,7 +124,9 @@ func (m *UserManager) All() (users []*User, err error) {
 		return
 	}
 	for rows.Next() {
-		user := &User{}
+		user := &User{
+			manager: m,
+		}
 		elem := reflect.ValueOf(user).Elem()
 		dest := make([]interface{}, elem.NumField())
 		for i := 0; i < elem.NumField(); i++ {
@@ -171,13 +167,8 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	}
 
 	// Build a list of parameters
-	// TODO This is dialect dependent
 	// TODO We want the columns except for the id, we know it's first for now
 	columns := m.columns[1:]
-	values := make([]string, len(columns))
-	for i, _ := range values {
-		values[i] = fmt.Sprintf(`$%d`, i+1)
-	}
 
 	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
@@ -186,10 +177,11 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 		parameters[i-1] = elem.Field(i).Addr().Interface()
 	}
 	query := fmt.Sprintf(
-		`INSERT INTO %s (%s) VALUES (%s) RETURNING id`,
+		`INSERT INTO "%s" (%s) VALUES (%s) RETURNING %s`,
 		m.table,
-		strings.Join(columns, ", "),
-		strings.Join(values, ", "),
+		m.db.JoinColumns(columns),
+		m.db.BuildParameters(columns),
+		m.primary,
 	)
 
 	// Return the new user's id
@@ -214,32 +206,39 @@ func (m *UserManager) GetId(id int64) (*User, error) {
 
 func (m *UserManager) Get(values Values) (*User, error) {
 	// TODO There must be a database connection and at least one value
-	user := &User{}
+	user := &User{
+		manager: m,
+	}
 
 	// Build the WHERE statement
-	wheres := make([]string, 0)
-	parameters := make([]interface{}, 0)
-	paramCount := 0
+	// These must equal the values given or the function returns an error
+	parameters := make([]interface{}, len(values))
+	valid := make([]string, len(values))
+
+	index := 0
 	for key, value := range values {
 		if !m.isValid(key) {
 			return nil, fmt.Errorf(`djinn: invalid column %q in user query`, key)
 		}
-		paramCount += 1
-		wheres = append(wheres, fmt.Sprintf(`%s = $%d`, key, paramCount))
-		parameters = append(parameters, value)
+		valid[index] = key
+		parameters[index] = value
+		index += 1
 	}
 	query := fmt.Sprintf(
-		`SELECT %s FROM %s WHERE %s LIMIT 2`,
-		strings.Join(m.columns, ", "),
+		`SELECT %s FROM "%s" WHERE %s LIMIT 2`,
+		m.db.JoinColumns(m.columns),
 		m.table,
-		strings.Join(wheres, " AND "),
+		m.db.JoinColumnParametersWith(valid, " AND ", 0),
 	)
 
 	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
-	dest := make([]interface{}, elem.NumField())
+	tags := reflect.TypeOf(user).Elem()
+	dest := make([]interface{}, 0)
 	for i := 0; i < elem.NumField(); i++ {
-		dest[i] = elem.Field(i).Addr().Interface()
+		if tags.Field(i).Tag.Get("db") != "" {
+			dest = append(dest, elem.Field(i).Addr().Interface())
+		}
 	}
 
 	rows, err := m.db.Query(query, parameters...)

@@ -51,12 +51,16 @@ func (d *Dialect) JoinColumns(columns []string) string {
 	return strings.Join(escaped, ", ")
 }
 
-func (d *Dialect) JoinColumnParameters(columns []string) string {
+func (d *Dialect) JoinColumnParametersWith(columns []string, sep string, start int) string {
 	escaped := make([]string, len(columns))
 	for i, column := range columns {
-		escaped[i] = fmt.Sprintf(`"%s" = %s`, column, d.parameters.Build(i))
+		escaped[i] = fmt.Sprintf(`"%s" = %s`, column, d.parameters.Build(i+i))
 	}
-	return strings.Join(escaped, ", ")
+	return strings.Join(escaped, sep)
+}
+
+func (d *Dialect) JoinColumnParameters(columns []string) string {
+	return d.JoinColumnParametersWith(columns, ", ", 0)
 }
 
 func (d *Dialect) BuildParameters(columns []string) string {
