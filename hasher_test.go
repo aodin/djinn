@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func ExpectPanic(t *testing.T, g func(a string, h Hasher), a string, h Hasher) {
+func expectPanic(t *testing.T, g func(a string, h Hasher), a string, h Hasher) {
 	defer func() {
 		if x := recover(); x == nil {
 			t.Error("Expected a panic, but one did not occur")
@@ -31,8 +31,8 @@ func TestHasherRegistry(t *testing.T) {
 	RegisterHasher(pbkdf2_sha512.algorithm, pbkdf2_sha512)
 
 	// No duplicates!
-	ExpectPanic(t, RegisterHasher, pbkdf2_sha512.algorithm, pbkdf2_sha512)
+	expectPanic(t, RegisterHasher, pbkdf2_sha512.algorithm, pbkdf2_sha512)
 
 	// Nor nil!
-	ExpectPanic(t, RegisterHasher, "nil", nil)
+	expectPanic(t, RegisterHasher, "nil", nil)
 }

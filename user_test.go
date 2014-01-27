@@ -7,13 +7,13 @@ import (
 )
 
 // TODO A better place for testing functions?
-func ExpectString(t *testing.T, a, b string) {
+func expectString(t *testing.T, a, b string) {
 	if a != b {
 		t.Errorf("Unexpected string: %s != %s", a, b)
 	}
 }
 
-func ExpectInt(t *testing.T, a, b int64) {
+func expectInt(t *testing.T, a, b int64) {
 	if a != b {
 		t.Errorf("Unexpected integer: %d != %d", a, b)
 	}
@@ -81,11 +81,11 @@ func TestUser(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatal(err)
 	// }
-	// ExpectString(t, user.Username, "client")
+	// expectString(t, user.Username, "client")
 
 	client, err := Users.GetId(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ExpectString(t, client.Username, "client")
+	expectString(t, client.Username, "client")
 }

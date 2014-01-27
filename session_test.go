@@ -53,8 +53,8 @@ func TestSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ExpectString(t, data.AuthUserBackend, "django.contrib.auth.backends.ModelBackend")
-	ExpectInt(t, data.AuthUserId, 1)
+	expectString(t, data.AuthUserBackend, "django.contrib.auth.backends.ModelBackend")
+	expectInt(t, data.AuthUserId, 1)
 }
 
 func TestSessionData_Encode(t *testing.T) {
