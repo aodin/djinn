@@ -19,7 +19,7 @@ func expectInt(t *testing.T, a, b int64) {
 	}
 }
 
-var bootstrapSqlite3 = `
+var sqliteUserSchema = `
 CREATE TABLE "auth_user" (
     "id" integer NOT NULL PRIMARY KEY,
     "password" varchar(128) NOT NULL,
@@ -36,14 +36,14 @@ CREATE TABLE "auth_user" (
 ;
 `
 
-var sqlite3user = `
+var sqliteInsertUser = `
  INSERT INTO "auth_user" ("username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 var exc = &User{
 	Id:          1,
 	Username:    "client",
-	Password:    "pbkdf2_sha256$12000$vfl5YUMEhry5$v4CCOHbNUyzku3s27rh1B3UIoqNzYoG0jV9CHpUHXAQ=",
+	Password:    "pbkdf2_sha256$12000$vfl5YUMEhry5$v4CCOHbNUyzku3s27rh1B3UIoqNzYoG0jV9CHpUHXAQ=", // "client"
 	FirstName:   "",
 	LastName:    "",
 	Email:       "",
@@ -64,13 +64,13 @@ func TestUser(t *testing.T) {
 	defer db.Close()
 
 	// Create the Users schema
-	_, err = db.Exec(bootstrapSqlite3)
+	_, err = db.Exec(sqliteUserSchema)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// TODO Manually insert a user for now
-	_, err = db.Exec(sqlite3user, exc.Username, exc.Password, exc.FirstName, exc.LastName, exc.Email, exc.IsActive, exc.IsStaff, exc.IsSuperuser, exc.DateJoined, exc.LastLogin)
+	_, err = db.Exec(sqliteInsertUser, exc.Username, exc.Password, exc.FirstName, exc.LastName, exc.Email, exc.IsActive, exc.IsStaff, exc.IsSuperuser, exc.DateJoined, exc.LastLogin)
 	if err != nil {
 		t.Fatal(err)
 	}
