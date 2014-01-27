@@ -54,3 +54,7 @@ func init() {
 func Settings() Config {
 	return config
 }
+
+func SetSecret(secret string) {
+	config.Secret = secret
+}

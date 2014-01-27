@@ -63,7 +63,7 @@ func TestUser(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Add the Users table
+	// Create the Users schema
 	_, err = db.Exec(bootstrapSqlite3)
 	if err != nil {
 		t.Fatal(err)

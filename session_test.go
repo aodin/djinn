@@ -6,29 +6,56 @@ import (
 	"testing"
 )
 
-// func TestSessions(t *testing.T) {
-// 	// TODO Common configuration
-// 	salt := []byte(`django.contrib.sessionsSessionStore`)
-// 	secret := []byte(`xsy!9deorcwbk!&=u33!ixik-r9c1@sf6tz0jnb*ce9ipe)e&m`)
-// 	db, err := Connect("postgres", "host=localhost port=5432 dbname=djangoex user=postgres password=gotest")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	defer db.Close()
+var sqliteSessionSchema = `
+CREATE TABLE "django_session" (
+	"session_key" varchar(40) NOT NULL PRIMARY KEY,
+	"session_data" text NOT NULL,
+	"expire_date" datetime NOT NULL
+)
+;
+CREATE INDEX "django_session_b7b81f0c" ON "django_session" ("expire_date");
+`
 
-// 	session, err := Sessions.Get(`2dsgveemkc5a6sthkgtez553ej0ra5la`)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestSessions(t *testing.T) {
+	// TODO Common configuration
+	salt := []byte(`django.contrib.sessionsSessionStore`)
+	secret := []byte(`xsy!9deorcwbk!&=u33!ixik-r9c1@sf6tz0jnb*ce9ipe)e&m`)
 
-// 	// Decode the session
-// 	data, err := DecodeSessionData(salt, secret, session.Data)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	ExpectString(t, data.AuthUserBackend, "django.contrib.auth.backends.ModelBackend")
-// 	ExpectInt(t, data.AuthUserId, 1)
-// }
+	// Set the secret or the session decode will use the default ""
+	SetSecret(string(secret))
+
+	db, err := Connect("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// Create the session schema
+	_, err = db.Exec(sqliteSessionSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new configuration
+	session, err := Sessions.Create(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get the same session by its key
+	s, err := Sessions.Get(session.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Decode the session
+	data, err := DecodeSessionData(salt, secret, s.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ExpectString(t, data.AuthUserBackend, "django.contrib.auth.backends.ModelBackend")
+	ExpectInt(t, data.AuthUserId, 1)
+}
 
 func TestSessionData_Encode(t *testing.T) {
 	// TODO Common configuration
