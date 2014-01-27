@@ -67,10 +67,11 @@ func createSqliteTestSchema(t *testing.T) *Dialect {
 
 func TestLogin(t *testing.T) {
 	// Set the secret or the session decode will use the default ""
+	// TODO Common testing configuration
 	secret := `xsy!9deorcwbk!&=u33!ixik-r9c1@sf6tz0jnb*ce9ipe)e&m`
 	SetSecret(secret)
 
-	// Start an in-memory sqlite database and set the secret key
+	// Start an in-memory sqlite database
 	db := createSqliteTestSchema(t)
 	defer db.Close()
 
@@ -86,7 +87,7 @@ func TestLogin(t *testing.T) {
 	}
 	expectInt(t, int64(response.StatusCode), 401)
 
-	// A POST should only return 204 on successful login, 500 otherwise
+	// A POST should only return 302 on successful login, 500 otherwise
 	response, err = http.PostForm(ts.URL+"/bad", url.Values{"username": {"client"}, "password": {"bad"}})
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +118,7 @@ func TestLogin(t *testing.T) {
 	// Get the session cookie from the response and set it for the next request
 	// cookies := response.Cookies()
 
-	// TODO ugggggghhhhh
+	// TODO cookiejar expects a url.URL but the test server URL is a string
 	testURL, err := url.Parse(ts.URL)
 	if err != nil {
 		t.Fatal(err)
