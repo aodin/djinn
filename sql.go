@@ -83,27 +83,52 @@ func (b *PostGresBuilder) Build(i int) string {
 
 type Sqlite3Builder struct{}
 
-func (b *Sqlite3Builder) Build(i int64) string {
+func (b *Sqlite3Builder) Build(i int) string {
 	return `?`
 }
-
-var postgresParameters = &PostGresBuilder{}
-
-var sqlite3Paramters = &Sqlite3Builder{}
 
 // The single dialect instance that all managers will embed
 // TODO What about multiple databases?
 var dialect Dialect
+
+// TODO Bootstrap sequence
+var dialects = make(map[string]ParameterBuilder)
+
+// TODO register a complete dialect
+func RegisterDialect(name string, d ParameterBuilder) {
+	if d == nil {
+		panic("djinn: attempting to register a nil dialect")
+	}
+	if _, duplicate := dialects[name]; duplicate {
+		panic("djinn: RegisterDialect called twice for Dialect " + name)
+	}
+	dialects[name] = d
+}
+
+func GetDialect(name string) (ParameterBuilder, error) {
+	d, ok := dialects[name]
+	if !ok {
+		return nil, fmt.Errorf("djinn: unknown dialect %s (did you remember to import it?)", name)
+	}
+	return d, nil
+}
+
+func init() {
+	RegisterDialect("sqlite3", &Sqlite3Builder{})
+	RegisterDialect("postgres", &PostGresBuilder{})
+}
 
 func Connect(driver, credentials string) (*Dialect, error) {
 	db, err := sql.Open(driver, credentials)
 	if err != nil {
 		return nil, err
 	}
-	// TODO determine which parameter building should be used
-	dialect = Dialect{DB: db, parameters: postgresParameters}
-
-	// TODO Or return the dialect?
+	// Determine which parameter building should be used
+	parameters, err := GetDialect(driver)
+	if err != nil {
+		return nil, err
+	}
+	dialect = Dialect{DB: db, parameters: parameters}
 	return &dialect, nil
 }
 

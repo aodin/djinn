@@ -171,11 +171,18 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	columns := m.columns[1:]
 
 	// Build the destination interfaces
+
+	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
-	parameters := make([]interface{}, len(columns))
+	tags := reflect.TypeOf(user).Elem()
+	dest := make([]interface{}, 0)
+	// Start at 1 to skip the id
 	for i := 1; i < elem.NumField(); i++ {
-		parameters[i-1] = elem.Field(i).Addr().Interface()
+		if tags.Field(i).Tag.Get("db") != "" {
+			dest = append(dest, elem.Field(i).Addr().Interface())
+		}
 	}
+
 	query := fmt.Sprintf(
 		`INSERT INTO "%s" (%s) VALUES (%s) RETURNING %s`,
 		m.table,
@@ -185,12 +192,16 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	)
 
 	// Return the new user's id
-	err = m.db.QueryRow(query, parameters...).Scan(&user.Id)
+	err = m.db.QueryRow(query, dest...).Scan(&user.Id)
 	return user, err
 }
 
 func (m *UserManager) CreateUser(username, email, password string) (*User, error) {
 	return m.createUser(username, email, password, false, false)
+}
+
+func (m *UserManager) CreateStaff(username, email, password string) (*User, error) {
+	return m.createUser(username, email, password, true, false)
 }
 
 func (m *UserManager) CreateSuperuser(username, email, password string) (*User, error) {
