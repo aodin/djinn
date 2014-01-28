@@ -24,17 +24,8 @@ func TestSessions(t *testing.T) {
 	// Set the secret or the session decode will use the default ""
 	SetSecret(string(secret))
 
-	db, err := Connect("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := createSqliteTestSchema(t)
 	defer db.Close()
-
-	// Create the session schema
-	_, err = db.Exec(sqliteSessionSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Create a new configuration
 	session, err := Sessions.Create(1)

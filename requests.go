@@ -19,6 +19,9 @@ func Authenticate(req *http.Request) (*User, error) {
 
 	// Get the session associated with this key
 	session, err := Sessions.Get(sessionCookie.Value)
+	if session == nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -34,11 +37,7 @@ func Authenticate(req *http.Request) (*User, error) {
 	}
 
 	// Get the User with the associated Id
-	user, err := Users.GetId(sessionData.AuthUserId)
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+	return Users.GetId(sessionData.AuthUserId)
 }
 
 // Cookies must be written before any data.
@@ -65,10 +64,16 @@ func Login(w http.ResponseWriter, req *http.Request) (*User, error) {
 	password := req.FormValue("password")
 
 	// Get the user with this username
-	// There must only be one user returned
+	// There must be one, and only one, user returned
 	user, err := Users.Get(Values{"username": username})
 	if err != nil {
 		return nil, err
+	}
+
+	// No user, no login
+	// TODO But is a missing user an error?
+	if user == nil {
+		return nil, nil
 	}
 
 	// Do a constant time comparison of passwords
@@ -104,6 +109,11 @@ func Logout(req *http.Request) error {
 	session, err := Sessions.Get(sessionCookie.Value)
 	if err != nil {
 		return err
+	}
+
+	// TODO If the session does not exist, is it still a successful logout?
+	if session == nil {
+		return nil
 	}
 
 	// TODO Create an anonymous session?

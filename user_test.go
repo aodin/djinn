@@ -63,23 +63,8 @@ var exc = &User{
 
 func TestUser(t *testing.T) {
 	// Start an in-memory sql database for testing
-	db, err := Connect("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := createSqliteTestSchema(t)
 	defer db.Close()
-
-	// Create the Users schema
-	_, err = db.Exec(sqliteUserSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// TODO Manually insert a user for now
-	_, err = db.Exec(sqliteInsertUser, exc.Username, exc.Password, exc.FirstName, exc.LastName, exc.Email, exc.IsActive, exc.IsStaff, exc.IsSuperuser, exc.DateJoined, exc.LastLogin)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Create a user
 	// TODO Need to fix "RETURNING" dialect specific syntax
@@ -89,9 +74,39 @@ func TestUser(t *testing.T) {
 	// }
 	// expectString(t, user.Username, "client")
 
+	// Get a user that exists by Id
 	client, err := Users.GetId(1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	expectString(t, client.Username, "client")
+
+	// Get a user that exists by Name
+	client, err = Users.Get(Values{"username": "client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectInt64(t, client.Id, 1)
+
+	// Query mutliple attributes
+	client, err = Users.Get(Values{"id": 1, "username": "client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectInt64(t, client.Id, 1)
+
+	// Get a user that does not exist
+	client, err = Users.GetId(2)
+	if client != nil {
+		t.Fatalf("Users.Get() returned a user where none should exist: %#v", client)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Attempt a query by an attribute that does not exist
+	_, err = Users.Get(Values{"sparkles": 23})
+	if err == nil {
+		t.Error("Expected an error from an invalid attribute in Users.Get(), but one did not occur")
+	}
 }

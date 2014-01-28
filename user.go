@@ -9,7 +9,6 @@ import (
 )
 
 var (
-	UserDoesNotExist = errors.New("djinn: user does not exist")
 	MultipleUsers    = errors.New("djinn: multiple users returned")
 	UnusablePassword = errors.New("djinn: user password is unusable")
 )
@@ -171,8 +170,6 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	columns := m.columns[1:]
 
 	// Build the destination interfaces
-
-	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
 	tags := reflect.TypeOf(user).Elem()
 	dest := make([]interface{}, 0)
@@ -183,6 +180,7 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 		}
 	}
 
+	// TODO This syntax is specific to postgres
 	query := fmt.Sprintf(
 		`INSERT INTO "%s" (%s) VALUES (%s) RETURNING %s`,
 		m.table,
@@ -211,15 +209,18 @@ func (m *UserManager) CreateSuperuser(username, email, password string) (*User, 
 // func (m *UserManager) Filter(values Values) (users []*User, err error) {
 // }
 
+// Get function behavior (disregarding database or attribute errors):
+// * No results:       (nil, nil)
+// * One result:       (<user>, nil)
+// * Multiple results: (nil, MultipleUsers error)
+// This differs from Django, where a Get query that returns zero results is
+// a DoesNotExist exception
 func (m *UserManager) GetId(id int64) (*User, error) {
 	return m.Get(Values{"id": id})
 }
 
 func (m *UserManager) Get(values Values) (*User, error) {
 	// TODO There must be a database connection and at least one value
-	user := &User{
-		manager: m,
-	}
 
 	// Build the WHERE statement
 	// These must equal the values given or the function returns an error
@@ -242,6 +243,11 @@ func (m *UserManager) Get(values Values) (*User, error) {
 		m.db.JoinColumnParametersWith(valid, " AND ", 0),
 	)
 
+	// Destination for queried User
+	user := &User{
+		manager: m,
+	}
+
 	// Build the destination interfaces
 	elem := reflect.ValueOf(user).Elem()
 	tags := reflect.TypeOf(user).Elem()
@@ -259,7 +265,7 @@ func (m *UserManager) Get(values Values) (*User, error) {
 
 	// One, and only one result should be returned
 	if !rows.Next() {
-		return nil, UserDoesNotExist
+		return nil, nil
 	}
 	if err := rows.Scan(dest...); err != nil {
 		return nil, err

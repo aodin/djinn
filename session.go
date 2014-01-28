@@ -76,8 +76,9 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 	}
 
 	// One and only one session should be returned
+	// It is not an error if no results are returned
 	if !rows.Next() {
-		return nil, SessionDoesNotExist
+		return nil, nil
 	}
 	s := &Session{
 		manager: m,

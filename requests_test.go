@@ -17,12 +17,18 @@ var doNotFollow = errors.New("djinn: do not follow redirects")
 // * GET without a session:              401 Unauthorized
 // * GET with a session:                 200 OK
 // * POST with correct credentials:      302 Found
-// * POST with incorrect credentials:    500
-// TODO Distinguish between a system failure and incorrect credentials
+// * POST with incorrect credentials:    400
+// * All other errors
 func loginTestHander(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Method, r.URL)
 	if r.Method == "POST" {
-		_, err := Login(w, r)
+		user, err := Login(w, r)
+		if user == nil || err == IncorrectPassword {
+			// Bad credentials
+			http.Error(w, "Improper credentials", 400)
+			return
+		}
+		// All other errors are the server's fault
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -31,8 +37,8 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/redirect", 302)
 		return
 	}
-	_, err := Authenticate(r)
-	if err != nil {
+	user, err := Authenticate(r)
+	if user == nil || err != nil {
 		http.Error(w, err.Error(), 401)
 		return
 	}
@@ -59,6 +65,7 @@ func createSqliteTestSchema(t *testing.T) *Dialect {
 	}
 
 	// TODO Manually insert a user for now
+	// TODO This should not be part of the schema set up
 	_, err = db.DB.Exec(sqliteInsertUser, exc.Username, exc.Password, exc.FirstName, exc.LastName, exc.Email, exc.IsActive, exc.IsStaff, exc.IsSuperuser, exc.DateJoined, exc.LastLogin)
 	if err != nil {
 		t.Fatal(err)
@@ -88,12 +95,13 @@ func TestLogin(t *testing.T) {
 	}
 	expectInt(t, response.StatusCode, 401)
 
-	// A POST should only return 302 on successful login, 500 otherwise
+	// A POST should only return 302 on successful login and 400 for
+	// bad credentials
 	response, err = http.PostForm(ts.URL+"/bad", url.Values{"username": {"client"}, "password": {"bad"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectInt(t, response.StatusCode, 500)
+	expectInt(t, response.StatusCode, 400)
 
 	// Use a custom client to control redirect policy and save cookies
 	ignoreRedirects := func(r *http.Request, via []*http.Request) error {
