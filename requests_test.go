@@ -22,8 +22,8 @@ var doNotFollow = errors.New("djinn: do not follow redirects")
 func loginTestHander(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Method, r.URL)
 	if r.Method == "POST" {
-		user, err := Login(w, r)
-		if user == nil || err == IncorrectPassword {
+		_, err := Login(w, r)
+		if err == IncorrectPassword || err == UserDoesNotExist {
 			// Bad credentials
 			http.Error(w, "Improper credentials", 400)
 			return
@@ -37,8 +37,8 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/redirect", 302)
 		return
 	}
-	user, err := Authenticate(r)
-	if user == nil || err != nil {
+	_, err := Authenticate(r)
+	if err != nil {
 		http.Error(w, err.Error(), 401)
 		return
 	}

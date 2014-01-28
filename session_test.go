@@ -46,6 +46,12 @@ func TestSessions(t *testing.T) {
 	}
 	expectString(t, data.AuthUserBackend, "django.contrib.auth.backends.ModelBackend")
 	expectInt64(t, data.AuthUserId, 1)
+
+	// A session key that does not exist should generate an error
+	s, err = Sessions.Get("A")
+	if err != SessionDoesNotExist {
+		t.Error("Expected a SessionDoesNotExist error, but one did not occur")
+	}
 }
 
 func TestSessionData_Encode(t *testing.T) {

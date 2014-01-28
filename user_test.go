@@ -61,7 +61,7 @@ var exc = &User{
 	manager:     Users,
 }
 
-func TestUser(t *testing.T) {
+func TestUsers(t *testing.T) {
 	// Start an in-memory sql database for testing
 	db := createSqliteTestSchema(t)
 	defer db.Close()
@@ -97,11 +97,8 @@ func TestUser(t *testing.T) {
 
 	// Get a user that does not exist
 	client, err = Users.GetId(2)
-	if client != nil {
-		t.Fatalf("Users.Get() returned a user where none should exist: %#v", client)
-	}
-	if err != nil {
-		t.Error(err)
+	if err != UserDoesNotExist {
+		t.Error("Expected a UserDoesNotExist error, but one did not occur")
 	}
 
 	// Attempt a query by an attribute that does not exist

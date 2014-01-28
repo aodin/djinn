@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	UserDoesNotExist = errors.New("djinn: user does not exist")
 	MultipleUsers    = errors.New("djinn: multiple users returned")
 	UnusablePassword = errors.New("djinn: user password is unusable")
 )
@@ -209,12 +210,10 @@ func (m *UserManager) CreateSuperuser(username, email, password string) (*User, 
 // func (m *UserManager) Filter(values Values) (users []*User, err error) {
 // }
 
-// Get function behavior (disregarding database or attribute errors):
-// * No results:       (nil, nil)
+// Users.Get() behavior (disregarding database or attribute errors):
+// * No results:       (nil, UserDoesNotExist)
 // * One result:       (<user>, nil)
-// * Multiple results: (nil, MultipleUsers error)
-// This differs from Django, where a Get query that returns zero results is
-// a DoesNotExist exception
+// * Multiple results: (nil, MultipleUsers)
 func (m *UserManager) GetId(id int64) (*User, error) {
 	return m.Get(Values{"id": id})
 }
@@ -265,7 +264,7 @@ func (m *UserManager) Get(values Values) (*User, error) {
 
 	// One, and only one result should be returned
 	if !rows.Next() {
-		return nil, nil
+		return nil, UserDoesNotExist
 	}
 	if err := rows.Scan(dest...); err != nil {
 		return nil, err
