@@ -18,6 +18,7 @@ var doNotFollow = errors.New("djinn: do not follow redirects")
 // * GET with a session:                 200 OK
 // * POST with correct credentials:      302 Found
 // * POST with incorrect credentials:    500
+// TODO Distinguish between a system failure and incorrect credentials
 func loginTestHander(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Method, r.URL)
 	if r.Method == "POST" {
@@ -45,7 +46,7 @@ func createSqliteTestSchema(t *testing.T) *Dialect {
 	}
 
 	// Create the Users schema
-	// We use the internal db connect so these queries are not logged
+	// We use the internal db connection so the schema queries are not logged
 	_, err = db.DB.Exec(sqliteUserSchema)
 	if err != nil {
 		t.Fatal(err)
@@ -85,14 +86,14 @@ func TestLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectInt(t, int64(response.StatusCode), 401)
+	expectInt(t, response.StatusCode, 401)
 
 	// A POST should only return 302 on successful login, 500 otherwise
 	response, err = http.PostForm(ts.URL+"/bad", url.Values{"username": {"client"}, "password": {"bad"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectInt(t, int64(response.StatusCode), 500)
+	expectInt(t, response.StatusCode, 500)
 
 	// Use a custom client to control redirect policy and save cookies
 	ignoreRedirects := func(r *http.Request, via []*http.Request) error {
@@ -113,7 +114,7 @@ func TestLogin(t *testing.T) {
 	// if err != nil &&  {
 	// 	t.Fatal(err)
 	// }
-	expectInt(t, int64(response.StatusCode), 302)
+	expectInt(t, response.StatusCode, 302)
 
 	// Get the session cookie from the response and set it for the next request
 	// cookies := response.Cookies()
@@ -137,5 +138,5 @@ func TestLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectInt(t, int64(response.StatusCode), 200)
+	expectInt(t, response.StatusCode, 200)
 }

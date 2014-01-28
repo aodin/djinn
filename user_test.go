@@ -13,7 +13,13 @@ func expectString(t *testing.T, a, b string) {
 	}
 }
 
-func expectInt(t *testing.T, a, b int64) {
+func expectInt64(t *testing.T, a, b int64) {
+	if a != b {
+		t.Errorf("Unexpected integer: %d != %d", a, b)
+	}
+}
+
+func expectInt(t *testing.T, a, b int) {
 	if a != b {
 		t.Errorf("Unexpected integer: %d != %d", a, b)
 	}
