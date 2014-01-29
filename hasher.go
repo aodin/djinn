@@ -1,8 +1,11 @@
 package djinn
 
 import (
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 type Hasher interface {
@@ -52,4 +55,47 @@ func (b *BaseHasher) Salt() string {
 
 func (b *BaseHasher) Algorithm() string {
 	return b.algorithm
+}
+
+// Create an MD5 hash that should never be used except for testing
+type MD5Hasher struct {
+	BaseHasher
+}
+
+func (m *MD5Hasher) Encode(cleartext, salt string) string {
+	h := md5.New()
+	h.Write([]byte(salt))
+	h.Write([]byte(cleartext))
+	b := h.Sum(nil)
+
+	// Encode as hex
+	return hex.EncodeToString(b)
+}
+
+func (m *MD5Hasher) Verify(cleartext, encoded string) bool {
+	// Split the saved hash apart
+	parts := strings.SplitN(encoded, "$", 3)
+
+	// TODO Errors? What about improperly formatted hashes?
+	if len(parts) != 3 {
+		return false
+	}
+	if parts[0] != m.algorithm {
+		return false
+	}
+
+	// Re-create the hash using the cleartext and salt
+	rehash := m.Encode(cleartext, parts[1])
+
+	// Perform a constant time comparison between the new and old hashes
+	return ConstantTimeStringCompare(rehash, parts[2])
+}
+
+func NewMD5Hasher() *MD5Hasher {
+	return &MD5Hasher{BaseHasher{algorithm: "md5"}}
+}
+
+func init() {
+	md5 := NewMD5Hasher()
+	RegisterHasher(md5.algorithm, md5)
 }

@@ -14,6 +14,16 @@ func expectPanic(t *testing.T, g func(a string, h Hasher), a string, h Hasher) {
 	g(a, h)
 }
 
+func TestMD5Hasher(t *testing.T) {
+	md5, err := GetHasher("md5")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash := md5.Encode("admin", "BD03RxMbKE9o")
+	expectString(t, hash, "7de5de2fb33be2b11dee2e016517df5a")
+}
+
 func TestHasherRegistry(t *testing.T) {
 	// The pbkdf2 hashers should be registered
 	_, err := GetHasher("pbkdf2_sha256")

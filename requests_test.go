@@ -46,6 +46,8 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestLogin(t *testing.T) {
+	// Set the default hasher MD5 to speed tests
+
 	// Set the secret or the session decode will use the default ""
 	// TODO Common testing configuration
 	secret := `xsy!9deorcwbk!&=u33!ixik-r9c1@sf6tz0jnb*ce9ipe)e&m`

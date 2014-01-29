@@ -34,6 +34,7 @@ func (u *User) String() string {
 	return u.Username
 }
 
+// TODO Save and delete should be proxies to a manager method
 // Delete the user from the database
 func (u *User) Delete() error {
 	// TODO There must be a non-nil manager and database connection
