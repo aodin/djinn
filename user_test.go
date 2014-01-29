@@ -3,7 +3,6 @@ package djinn
 import (
 	_ "github.com/mattn/go-sqlite3"
 	"testing"
-	"time"
 )
 
 // TODO A better place for testing functions?
@@ -39,23 +38,10 @@ var sqliteUserSchema = `CREATE TABLE "auth_user" (
     "date_joined" datetime NOT NULL
 );`
 
-var exc = &User{
-	Id:          1,
-	Username:    "client",
-	Password:    "pbkdf2_sha256$12000$vfl5YUMEhry5$v4CCOHbNUyzku3s27rh1B3UIoqNzYoG0jV9CHpUHXAQ=", // "client"
-	FirstName:   "",
-	LastName:    "",
-	Email:       "",
-	IsActive:    true,
-	IsStaff:     false,
-	IsSuperuser: false,
-	DateJoined:  time.Now(),
-	LastLogin:   time.Now(),
-	manager:     Users,
-}
-
 func TestUsers(t *testing.T) {
-	// TODO Set the default hasher to MD5 for fast testing
+	// Set the default hasher to MD5 for fast testing
+	// TODO Reset after testing is complete
+	config.PasswordHasher = "md5"
 
 	// Start an in-memory sql database for testing
 	db := createSqliteTestSchema(t, sqliteUserSchema)

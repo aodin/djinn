@@ -20,7 +20,6 @@ var doNotFollow = errors.New("djinn: do not follow redirects")
 // * POST with incorrect credentials:    400
 // * All other errors
 func loginTestHander(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.Method, r.URL)
 	if r.Method == "POST" {
 		_, err := Login(w, r)
 		if err == IncorrectPassword || err == UserDoesNotExist {
@@ -29,7 +28,9 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// All other errors are the server's fault
+		// There are also never expected as a test result
 		if err != nil {
+			log.Println("Unexpected 500 during Login:", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
@@ -46,7 +47,9 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestLogin(t *testing.T) {
-	// Set the default hasher MD5 to speed tests
+	// Set the default hasher to MD5 for fast testing
+	// TODO Reset after testing is complete
+	config.PasswordHasher = "md5"
 
 	// Set the secret or the session decode will use the default ""
 	// TODO Common testing configuration

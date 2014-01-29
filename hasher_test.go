@@ -21,7 +21,11 @@ func TestMD5Hasher(t *testing.T) {
 	}
 
 	hash := md5.Encode("admin", "BD03RxMbKE9o")
-	expectString(t, hash, "7de5de2fb33be2b11dee2e016517df5a")
+	expectString(t, hash, "md5$BD03RxMbKE9o$7de5de2fb33be2b11dee2e016517df5a")
+
+	if !md5.Verify("admin", hash) {
+		t.Error("Could not verify MD5 password hash")
+	}
 }
 
 func TestHasherRegistry(t *testing.T) {

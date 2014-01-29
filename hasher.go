@@ -69,7 +69,7 @@ func (m *MD5Hasher) Encode(cleartext, salt string) string {
 	b := h.Sum(nil)
 
 	// Encode as hex
-	return hex.EncodeToString(b)
+	return strings.Join([]string{m.algorithm, salt, hex.EncodeToString(b)}, "$")
 }
 
 func (m *MD5Hasher) Verify(cleartext, encoded string) bool {
@@ -84,8 +84,13 @@ func (m *MD5Hasher) Verify(cleartext, encoded string) bool {
 		return false
 	}
 
-	// Re-create the hash using the cleartext and salt
-	rehash := m.Encode(cleartext, parts[1])
+	// Re-create the hash using the cleartext and salt (parts[1])
+	// TODO There is duplicate with the Encode method
+	h := md5.New()
+	h.Write([]byte(parts[1]))
+	h.Write([]byte(cleartext))
+	b := h.Sum(nil)
+	rehash := hex.EncodeToString(b)
 
 	// Perform a constant time comparison between the new and old hashes
 	return ConstantTimeStringCompare(rehash, parts[2])

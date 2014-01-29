@@ -14,6 +14,10 @@ var sqliteSessionSchema = `CREATE TABLE "django_session" (
 CREATE INDEX "django_session_b7b81f0c" ON "django_session" ("expire_date");`
 
 func TestSessions(t *testing.T) {
+	// Set the default hasher to MD5 for fast testing
+	// TODO Reset after testing is complete
+	config.PasswordHasher = "md5"
+
 	// TODO Common configuration
 	salt := []byte(`django.contrib.sessionsSessionStore`)
 	secret := []byte(`xsy!9deorcwbk!&=u33!ixik-r9c1@sf6tz0jnb*ce9ipe)e&m`)
