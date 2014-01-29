@@ -87,28 +87,17 @@ func (u *User) CheckPassword(password string) (bool, error) {
 }
 
 type UserManager struct {
-	db      *DB
-	table   string
-	columns []string
-	primary string
+	*Manager
 }
 
 // Build columns and primary keys dynamically - on init?
 var Users = &UserManager{
-	db:      &connection,
-	table:   "auth_user",
-	columns: []string{"id", "username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login"},
-	primary: "id",
-}
-
-// TODO A generalized isValid method for all managers
-func (m *UserManager) isValid(column string) bool {
-	for _, col := range m.columns {
-		if column == col {
-			return true
-		}
-	}
-	return false
+	&Manager{
+		db:      &connection,
+		table:   "auth_user",
+		columns: []string{"id", "username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login"},
+		primary: "id",
+	},
 }
 
 func (m *UserManager) All() (users []*User, err error) {
@@ -170,28 +159,23 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 	// TODO We want the columns except for the id, we know it's first for now
 	columns := m.columns[1:]
 
-	// Build the destination interfaces
+	// Build the parameter interfaces
 	elem := reflect.ValueOf(user).Elem()
 	tags := reflect.TypeOf(user).Elem()
-	dest := make([]interface{}, 0)
+	params := make([]interface{}, 0)
 	// Start at 1 to skip the id
 	for i := 1; i < elem.NumField(); i++ {
 		if tags.Field(i).Tag.Get("db") != "" {
-			dest = append(dest, elem.Field(i).Addr().Interface())
+			params = append(params, elem.Field(i).Addr().Interface())
 		}
 	}
 
-	// TODO This syntax is specific to postgres
-	query := fmt.Sprintf(
-		`INSERT INTO "%s" (%s) VALUES (%s) RETURNING %s`,
-		m.table,
-		m.db.JoinColumns(columns),
-		m.db.BuildParameters(columns),
-		m.primary,
-	)
-
-	// Return the new user's id
-	err = m.db.QueryRow(query, dest...).Scan(&user.Id)
+	// INSERT with an auto-increment id varies between dialects
+	id, err := m.db.dialect.InsertReturningId(m.Manager, columns, params...)
+	if err != nil {
+		return nil, err
+	}
+	user.Id = id
 	return user, err
 }
 

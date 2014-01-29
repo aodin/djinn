@@ -25,8 +25,7 @@ func expectInt(t *testing.T, a, b int) {
 	}
 }
 
-var sqliteUserSchema = `
-CREATE TABLE "auth_user" (
+var sqliteUserSchema = `CREATE TABLE "auth_user" (
     "id" integer NOT NULL PRIMARY KEY,
     "password" varchar(128) NOT NULL,
     "last_login" datetime NOT NULL,
@@ -42,8 +41,7 @@ CREATE TABLE "auth_user" (
 ;
 `
 
-var sqliteInsertUser = `
- INSERT INTO "auth_user" ("username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+var sqliteInsertUser = `INSERT INTO "auth_user" ("username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 var exc = &User{

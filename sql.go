@@ -16,10 +16,6 @@ type DB struct {
 	dialect Dialect
 }
 
-type Dialect interface {
-	Parameter(i int) string
-}
-
 func (d *DB) Query(q string, args ...interface{}) (rows *sql.Rows, err error) {
 	before := time.Now()
 	rows, err = d.DB.Query(q, args...)
@@ -76,6 +72,12 @@ func (d *DB) BuildParameters(columns []string) string {
 	return strings.Join(parameters, ", ")
 }
 
+// A Dialect must implement all the operations that vary database to database
+type Dialect interface {
+	Parameter(i int) string
+	InsertReturningId(m *Manager, columns []string, params ...interface{}) (int64, error)
+}
+
 // TODO A base dialect?
 
 type PostGres struct{}
@@ -84,10 +86,36 @@ func (d *PostGres) Parameter(i int) string {
 	return fmt.Sprintf(`$%d`, i+1)
 }
 
+func (d *PostGres) InsertReturningId(m *Manager, columns []string, params ...interface{}) (id int64, err error) {
+	query := fmt.Sprintf(
+		`INSERT INTO "%s" (%s) VALUES (%s) RETURNING %s`,
+		m.table,
+		m.db.JoinColumns(columns),
+		m.db.BuildParameters(columns),
+		m.primary,
+	)
+	err = m.db.QueryRow(query, params...).Scan(&id)
+	return id, err
+}
+
 type Sqlite3 struct{}
 
 func (d *Sqlite3) Parameter(i int) string {
 	return `?`
+}
+
+func (d *Sqlite3) InsertReturningId(m *Manager, columns []string, params ...interface{}) (int64, error) {
+	query := fmt.Sprintf(
+		`INSERT INTO "%s" (%s) VALUES (%s)`,
+		m.table,
+		m.db.JoinColumns(columns),
+		m.db.BuildParameters(columns),
+	)
+	result, err := m.db.Exec(query, params...)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
 // The single dialect instance that all managers will embed

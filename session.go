@@ -42,19 +42,18 @@ func (s *Session) Delete() error {
 }
 
 type SessionManager struct {
-	db      *DB
-	table   string
-	columns []string
-	primary string
+	*Manager
 }
 
 // The global session manager
 // Build columns and primary keys dynamically - on init?
 var Sessions = &SessionManager{
-	db:      &connection,
-	table:   "django_session",
-	columns: []string{"session_key", "session_data", "expire_date"},
-	primary: "session_key",
+	&Manager{
+		db:      &connection,
+		table:   "django_session",
+		columns: []string{"session_key", "session_data", "expire_date"},
+		primary: "session_key",
+	},
 }
 
 // Get a session with an exact matching key and expire date greater than now
