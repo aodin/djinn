@@ -37,12 +37,7 @@ var sqliteUserSchema = `CREATE TABLE "auth_user" (
     "is_staff" bool NOT NULL,
     "is_active" bool NOT NULL,
     "date_joined" datetime NOT NULL
-)
-;
-`
-
-var sqliteInsertUser = `INSERT INTO "auth_user" ("username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`
+);`
 
 var exc = &User{
 	Id:          1,
@@ -60,20 +55,23 @@ var exc = &User{
 }
 
 func TestUsers(t *testing.T) {
+	// TODO Set the default hasher to MD5 for fast testing
+
 	// Start an in-memory sql database for testing
-	db := createSqliteTestSchema(t)
+	db := createSqliteTestSchema(t, sqliteUserSchema)
 	defer db.Close()
 
 	// Create a user
-	// TODO Need to fix "RETURNING" dialect specific syntax
-	// user, err := Users.CreateUser("client", "", "client")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// expectString(t, user.Username, "client")
+	user, err := Users.CreateUser("client", "", "client")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectString(t, user.Username, "client")
+	// TODO Do we have an expected id?
+	expectInt64(t, user.Id, 1)
 
 	// Get a user that exists by Id
-	client, err := Users.GetId(1)
+	client, err := Users.GetId(user.Id)
 	if err != nil {
 		t.Fatal(err)
 	}

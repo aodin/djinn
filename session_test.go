@@ -10,10 +10,8 @@ var sqliteSessionSchema = `CREATE TABLE "django_session" (
 	"session_key" varchar(40) NOT NULL PRIMARY KEY,
 	"session_data" text NOT NULL,
 	"expire_date" datetime NOT NULL
-)
-;
-CREATE INDEX "django_session_b7b81f0c" ON "django_session" ("expire_date");
-`
+);
+CREATE INDEX "django_session_b7b81f0c" ON "django_session" ("expire_date");`
 
 func TestSessions(t *testing.T) {
 	// TODO Common configuration
@@ -23,7 +21,7 @@ func TestSessions(t *testing.T) {
 	// Set the secret or the session decode will use the default ""
 	SetSecret(string(secret))
 
-	db := createSqliteTestSchema(t)
+	db := createSqliteTestSchema(t, sqliteUserSchema, sqliteSessionSchema)
 	defer db.Close()
 
 	// Create a new configuration

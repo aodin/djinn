@@ -45,34 +45,6 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`200`))
 }
 
-func createSqliteTestSchema(t *testing.T) *DB {
-	db, err := Connect("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create the Users schema
-	// We use the internal db connection so the schema queries are not logged
-	_, err = db.DB.Exec(sqliteUserSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create the sessions schema
-	_, err = db.DB.Exec(sqliteSessionSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// TODO Manually insert a user for now
-	// TODO This should not be part of the schema set up
-	_, err = db.DB.Exec(sqliteInsertUser, exc.Username, exc.Password, exc.FirstName, exc.LastName, exc.Email, exc.IsActive, exc.IsStaff, exc.IsSuperuser, exc.DateJoined, exc.LastLogin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return db
-}
-
 func TestLogin(t *testing.T) {
 	// Set the secret or the session decode will use the default ""
 	// TODO Common testing configuration
@@ -80,8 +52,14 @@ func TestLogin(t *testing.T) {
 	SetSecret(secret)
 
 	// Start an in-memory sqlite database
-	db := createSqliteTestSchema(t)
+	db := createSqliteTestSchema(t, sqliteUserSchema, sqliteSessionSchema)
 	defer db.Close()
+
+	// Create a user
+	_, err := Users.CreateUser("client", "", "client")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Start the login test server
 	ts := httptest.NewServer(http.HandlerFunc(loginTestHander))
