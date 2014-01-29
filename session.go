@@ -35,14 +35,14 @@ func (s *Session) Delete() error {
 		`DELETE FROM "%s" WHERE "%s" = %s`,
 		s.manager.table,
 		s.manager.primary,
-		s.manager.db.parameters.Build(0),
+		s.manager.db.dialect.Parameter(0),
 	)
 	_, err := s.manager.db.Exec(query, s.Key)
 	return err
 }
 
 type SessionManager struct {
-	db      *Dialect
+	db      *DB
 	table   string
 	columns []string
 	primary string
@@ -51,7 +51,7 @@ type SessionManager struct {
 // The global session manager
 // Build columns and primary keys dynamically - on init?
 var Sessions = &SessionManager{
-	db:      &dialect,
+	db:      &connection,
 	table:   "django_session",
 	columns: []string{"session_key", "session_data", "expire_date"},
 	primary: "session_key",
@@ -65,8 +65,8 @@ func (m *SessionManager) Get(key string) (*Session, error) {
 		`SELECT %s FROM "%s" WHERE "session_key" = %s AND "expire_date" >= %s`,
 		m.db.JoinColumns(m.columns),
 		m.table,
-		m.db.parameters.Build(0),
-		m.db.parameters.Build(1),
+		m.db.dialect.Parameter(0),
+		m.db.dialect.Parameter(1),
 	)
 
 	// Don't bother with a destination interface
@@ -96,7 +96,7 @@ func (m *SessionManager) Exists(key string) (exists bool, err error) {
 	query := fmt.Sprintf(
 		`SELECT EXISTS(SELECT 1 FROM "%s" WHERE "session_key" = %s LIMIT 1)`,
 		m.table,
-		m.db.parameters.Build(0),
+		m.db.dialect.Parameter(0),
 	)
 	err = m.db.QueryRow(query, key).Scan(&exists)
 	return

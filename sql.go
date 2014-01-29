@@ -10,26 +10,31 @@ import (
 
 type Values map[string]interface{}
 
-type Dialect struct {
+// Wrap the sql.DB to provide access to dialect-specific operations and logging
+type DB struct {
 	*sql.DB
-	parameters ParameterBuilder
+	dialect Dialect
 }
 
-func (d *Dialect) Query(q string, args ...interface{}) (rows *sql.Rows, err error) {
+type Dialect interface {
+	Parameter(i int) string
+}
+
+func (d *DB) Query(q string, args ...interface{}) (rows *sql.Rows, err error) {
 	before := time.Now()
 	rows, err = d.DB.Query(q, args...)
 	d.Log(q, time.Now().Sub(before), args)
 	return
 }
 
-func (d *Dialect) QueryRow(q string, args ...interface{}) *sql.Row {
+func (d *DB) QueryRow(q string, args ...interface{}) *sql.Row {
 	before := time.Now()
 	row := d.DB.QueryRow(q, args...)
 	d.Log(q, time.Now().Sub(before), args)
 	return row
 }
 
-func (d *Dialect) Exec(q string, args ...interface{}) (sql.Result, error) {
+func (d *DB) Exec(q string, args ...interface{}) (sql.Result, error) {
 	before := time.Now()
 	result, err := d.DB.Exec(q, args...)
 	d.Log(q, time.Now().Sub(before), args)
@@ -37,13 +42,13 @@ func (d *Dialect) Exec(q string, args ...interface{}) (sql.Result, error) {
 }
 
 // Output the elapsed time, query, and arguments
-func (d *Dialect) Log(q string, elapsed time.Duration, args ...interface{}) {
+func (d *DB) Log(q string, elapsed time.Duration, args ...interface{}) {
 	// TODO Only output if a logger exists
 	log.Printf(`(%.3f) %s args=%v`, elapsed.Seconds(), q, args)
 }
 
 // Escape table columns and join
-func (d *Dialect) JoinColumns(columns []string) string {
+func (d *DB) JoinColumns(columns []string) string {
 	escaped := make([]string, len(columns))
 	for i, column := range columns {
 		escaped[i] = fmt.Sprintf(`"%s"`, column)
@@ -51,51 +56,49 @@ func (d *Dialect) JoinColumns(columns []string) string {
 	return strings.Join(escaped, ", ")
 }
 
-func (d *Dialect) JoinColumnParametersWith(columns []string, sep string, start int) string {
+func (d *DB) JoinColumnParametersWith(columns []string, sep string, start int) string {
 	escaped := make([]string, len(columns))
 	for i, column := range columns {
-		escaped[i] = fmt.Sprintf(`"%s" = %s`, column, d.parameters.Build(i+i))
+		escaped[i] = fmt.Sprintf(`"%s" = %s`, column, d.dialect.Parameter(i+i))
 	}
 	return strings.Join(escaped, sep)
 }
 
-func (d *Dialect) JoinColumnParameters(columns []string) string {
+func (d *DB) JoinColumnParameters(columns []string) string {
 	return d.JoinColumnParametersWith(columns, ", ", 0)
 }
 
-func (d *Dialect) BuildParameters(columns []string) string {
+func (d *DB) BuildParameters(columns []string) string {
 	parameters := make([]string, len(columns))
 	for i, _ := range columns {
-		parameters[i] = d.parameters.Build(i)
+		parameters[i] = d.dialect.Parameter(i)
 	}
 	return strings.Join(parameters, ", ")
 }
 
-type ParameterBuilder interface {
-	Build(int) string
-}
+// TODO A base dialect?
 
-type PostGresBuilder struct{}
+type PostGres struct{}
 
-func (b *PostGresBuilder) Build(i int) string {
+func (d *PostGres) Parameter(i int) string {
 	return fmt.Sprintf(`$%d`, i+1)
 }
 
-type Sqlite3Builder struct{}
+type Sqlite3 struct{}
 
-func (b *Sqlite3Builder) Build(i int) string {
+func (d *Sqlite3) Parameter(i int) string {
 	return `?`
 }
 
 // The single dialect instance that all managers will embed
 // TODO What about multiple databases?
-var dialect Dialect
+var connection DB
 
 // TODO Bootstrap sequence
-var dialects = make(map[string]ParameterBuilder)
+var dialects = make(map[string]Dialect)
 
 // TODO register a complete dialect
-func RegisterDialect(name string, d ParameterBuilder) {
+func RegisterDialect(name string, d Dialect) {
 	if d == nil {
 		panic("djinn: attempting to register a nil dialect")
 	}
@@ -105,7 +108,7 @@ func RegisterDialect(name string, d ParameterBuilder) {
 	dialects[name] = d
 }
 
-func GetDialect(name string) (ParameterBuilder, error) {
+func GetDialect(name string) (Dialect, error) {
 	d, ok := dialects[name]
 	if !ok {
 		return nil, fmt.Errorf("djinn: unknown dialect %s (did you remember to import it?)", name)
@@ -114,20 +117,20 @@ func GetDialect(name string) (ParameterBuilder, error) {
 }
 
 func init() {
-	RegisterDialect("sqlite3", &Sqlite3Builder{})
-	RegisterDialect("postgres", &PostGresBuilder{})
+	RegisterDialect("sqlite3", &Sqlite3{})
+	RegisterDialect("postgres", &PostGres{})
 }
 
-func Connect(driver, credentials string) (*Dialect, error) {
+func Connect(driver, credentials string) (*DB, error) {
 	db, err := sql.Open(driver, credentials)
 	if err != nil {
 		return nil, err
 	}
 	// Determine which parameter building should be used
-	parameters, err := GetDialect(driver)
+	dialect, err := GetDialect(driver)
 	if err != nil {
 		return nil, err
 	}
-	dialect = Dialect{DB: db, parameters: parameters}
-	return &dialect, nil
+	connection = DB{DB: db, dialect: dialect}
+	return &connection, nil
 }

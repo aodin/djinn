@@ -41,7 +41,7 @@ func (u *User) Delete() error {
 		`DELETE FROM "%s" WHERE "%s" = %s`,
 		u.manager.table,
 		u.manager.primary,
-		u.manager.db.parameters.Build(0),
+		u.manager.db.dialect.Parameter(0),
 	)
 	_, err := u.manager.db.Exec(query, u.Id)
 	return err
@@ -57,7 +57,7 @@ func (u *User) Save() error {
 		u.manager.table,
 		u.manager.db.JoinColumnParameters(columns),
 		u.manager.primary,
-		u.manager.db.parameters.Build(len(columns)),
+		u.manager.db.dialect.Parameter(len(columns)),
 	)
 
 	// Build the list of parameters
@@ -87,7 +87,7 @@ func (u *User) CheckPassword(password string) (bool, error) {
 }
 
 type UserManager struct {
-	db      *Dialect
+	db      *DB
 	table   string
 	columns []string
 	primary string
@@ -95,7 +95,7 @@ type UserManager struct {
 
 // Build columns and primary keys dynamically - on init?
 var Users = &UserManager{
-	db:      &dialect,
+	db:      &connection,
 	table:   "auth_user",
 	columns: []string{"id", "username", "password", "first_name", "last_name", "email", "is_active", "is_staff", "is_superuser", "date_joined", "last_login"},
 	primary: "id",

@@ -45,7 +45,7 @@ func loginTestHander(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`200`))
 }
 
-func createSqliteTestSchema(t *testing.T) *Dialect {
+func createSqliteTestSchema(t *testing.T) *DB {
 	db, err := Connect("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatal(err)
