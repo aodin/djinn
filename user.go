@@ -136,7 +136,7 @@ func (m *UserManager) All() (users []*User, err error) {
 
 func (m *UserManager) createUser(username, email, password string, is_staff, is_superuser bool) (*User, error) {
 	// Prepare the user
-	// TODO Default values are tricky because Go users nil initialization
+	// TODO Default values are tricky because of Go's nil initialization
 	now := time.Now()
 
 	// Get the default password hashing algorithm
@@ -154,6 +154,7 @@ func (m *UserManager) createUser(username, email, password string, is_staff, is_
 		IsActive:    true,
 		DateJoined:  now,
 		LastLogin:   now,
+		manager:     m,
 	}
 
 	// Build a list of parameters
@@ -214,7 +215,7 @@ func (m *UserManager) Get(values Values) (*User, error) {
 	index := 0
 	for key, value := range values {
 		if !m.isValid(key) {
-			return nil, fmt.Errorf(`djinn: invalid column %q in user query`, key)
+			return nil, fmt.Errorf(`djinn: invalid column %q in Users.Get()`, key)
 		}
 		valid[index] = key
 		parameters[index] = value
