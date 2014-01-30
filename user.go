@@ -117,12 +117,16 @@ func (m *UserManager) All() (users []*User, err error) {
 		user := &User{
 			manager: m,
 		}
+		// Build the parameter interfaces
+		// TODO This can be generalized, and likely better performing
 		elem := reflect.ValueOf(user).Elem()
-		dest := make([]interface{}, elem.NumField())
+		tags := reflect.TypeOf(user).Elem()
+		dest := make([]interface{}, 0)
 		for i := 0; i < elem.NumField(); i++ {
-			dest[i] = elem.Field(i).Addr().Interface()
+			if tags.Field(i).Tag.Get("db") != "" {
+				dest = append(dest, elem.Field(i).Addr().Interface())
+			}
 		}
-
 		if err = rows.Scan(dest...); err != nil {
 			return
 		}

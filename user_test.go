@@ -88,4 +88,18 @@ func TestUsers(t *testing.T) {
 	if err == nil {
 		t.Error("Expected an error from an invalid attribute in Users.Get(), but one did not occur")
 	}
+
+	// Create another User
+	_, err = Users.CreateSuperuser("admin", "admin@example.com", "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	users, err := Users.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("Unexpected length of Users.All(): %s != 2", len(users))
+	}
 }

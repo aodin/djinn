@@ -11,7 +11,7 @@ func createSqliteTestSchema(t *testing.T, schemas ...string) *DB {
 	}
 
 	// Create the given schemas
-	// We use the internal db connection so the schema queries are not logged
+	// Use the internal db connection so the schema queries are not logged
 	// TODO Error if no schemas were given?
 	for _, schema := range schemas {
 		_, err = db.DB.Exec(schema)
