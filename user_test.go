@@ -3,6 +3,7 @@ package djinn
 import (
 	_ "github.com/mattn/go-sqlite3"
 	"testing"
+	"time"
 )
 
 // TODO A better place for testing functions?
@@ -21,6 +22,16 @@ func expectInt64(t *testing.T, a, b int64) {
 func expectInt(t *testing.T, a, b int) {
 	if a != b {
 		t.Errorf("Unexpected integer: %d != %d", a, b)
+	}
+}
+
+func expectDuration(t *testing.T, a time.Duration, b string) {
+	d, err := time.ParseDuration(b)
+	if err != nil {
+		t.Error(err)
+	}
+	if a != d {
+		t.Errorf("Unexpected duration: %v != %v", a, d)
 	}
 }
 
