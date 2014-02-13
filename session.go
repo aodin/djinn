@@ -204,6 +204,7 @@ func DecodeSessionData(salt, secret []byte, encoded string) (*SessionData, error
 
 	// Decode the session data
 	// Python's pickle is close enough to json that default data works
+	// As of Django 1.6, the default session serializer is JSON
 	var sessionData SessionData
 	if err = json.Unmarshal(parts[1], &sessionData); err != nil {
 		return nil, BadSessionData

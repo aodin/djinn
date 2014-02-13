@@ -9,7 +9,7 @@ Check the wiki for examples.
 
 Caveats:
 
-* Instead of pickling and un-pickling session data it is encoded by the Go `encoding/json` package. Pickled and JSON data are similar enough that the default session data will work.
+* Instead of pickling and un-pickling session data it is encoded by the Go `encoding/json` package. Pickled and JSON data are similar enough that the default session data will work. As of Django 1.6, session data will be encoded using JSON by default.
 
 The D is silent.
 
